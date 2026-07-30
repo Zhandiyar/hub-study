@@ -1,0 +1,48 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  security:
+    oauth2:
+      client:
+        registration:
+          app-registry:
+            client-id: ${APP_REGISTRY_CLIENT_ID}
+            client-secret: ${APP_REGISTRY_CLIENT_SECRET}
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI}
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+          audiences:
+            - ${KEYCLOAK_AUDIENCE}
+
+app:
+  clients:
+    app-registry:
+      base-url: ${APP_REGISTRY_BASE_URL}
+  problems:
+    base-uri: ${APP_PROBLEMS_BASE_URI}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+log-config:
+  json-logging: true
+  mask-sensitive-data: true
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.study.hub: INFO
+    org.zalando.logbook.Logbook: TRACE

@@ -1,0 +1,102 @@
+spring:
+  application:
+    name: hub
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  mvc:
+    problemdetails:
+      enabled: true
+  security:
+    oauth2:
+      client:
+        registration:
+          app-registry:
+            provider: keycloak
+            client-id: ${APP_REGISTRY_CLIENT_ID:hub}
+            client-secret: ${APP_REGISTRY_CLIENT_SECRET:local-dev-only}
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8081/realms/hub/protocol/openid-connect/token}
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/hub}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/hub/protocol/openid-connect/certs}
+          audiences:
+            - ${KEYCLOAK_AUDIENCE:hub}
+
+server:
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  clients:
+    app-registry:
+      base-url: ${APP_REGISTRY_BASE_URL:http://localhost:8082}
+      connect-timeout: ${APP_REGISTRY_CONNECT_TIMEOUT:2s}
+      read-timeout: ${APP_REGISTRY_READ_TIMEOUT:3s}
+    keycloak:
+      connect-timeout: ${KEYCLOAK_CONNECT_TIMEOUT:2s}
+      read-timeout: ${KEYCLOAK_READ_TIMEOUT:3s}
+  problems:
+    base-uri: ${APP_PROBLEMS_BASE_URI:https://api.example.com/hub/problems/}
+
+log-config:
+  json-logging: false
+  mask-sensitive-data: true
+
+logbook:
+  format:
+    style: json
+  strategy: body-only-if-status-at-least
+  minimum-status: 400
+  predicate:
+    exclude:
+      - path: /actuator/**
+      - path: /swagger-ui/**
+      - path: /v3/api-docs/**
+      - path: /favicon.ico
+  obfuscate:
+    headers:
+      - Authorization
+      - Cookie
+      - Set-Cookie
+    parameters:
+      - code
+      - token
+  write:
+    max-body-size: 10000
+  masking:
+    sensitive-fields:
+      - credentialId
+      - credential_id
+      - secret
+      - code
+      - token
+      - accessToken
+      - refreshToken
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.study.hub: INFO
+    org.zalando.logbook.Logbook: TRACE
