@@ -13,6 +13,7 @@
 - OAuth2 Resource Server с проверкой JWT;
 - service-to-service OAuth2 `client_credentials` для вызова app-registry;
 - короткие connect/read timeout для app-registry и token endpoint Keycloak;
+- Apache HttpClient 5 с отдельным пулом соединений для app-registry;
 - передача correlation ID в app-registry;
 - `GET /hub/api/v1/{appId}`;
 - обработка статусов приложения `ACTIVE`, `DISABLED`, `MAINTENANCE`;
@@ -132,4 +133,13 @@ APP_REGISTRY_CLIENT_ID
 APP_REGISTRY_CLIENT_SECRET
 APP_REGISTRY_BASE_URL
 APP_PROBLEMS_BASE_URI
+```
+
+Размер пула и timeout ожидания свободного соединения можно настроить через:
+
+```text
+APP_REGISTRY_MAX_CONNECTIONS
+APP_REGISTRY_MAX_CONNECTIONS_PER_ROUTE
+APP_REGISTRY_CONNECTION_REQUEST_TIMEOUT
+APP_REGISTRY_IDLE_CONNECTION_TIMEOUT
 ```

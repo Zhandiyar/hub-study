@@ -1,6 +1,7 @@
 package com.study.hub.client.appregistry;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -20,6 +21,20 @@ public record AppRegistryClientProperties(
 
         @NotNull
         @DurationMin(millis = 1)
-        Duration readTimeout
+        Duration readTimeout,
+
+        @NotNull
+        @DurationMin(millis = 1)
+        Duration connectionRequestTimeout,
+
+        @NotNull
+        @DurationMin(millis = 1)
+        Duration idleConnectionTimeout,
+
+        @Positive
+        int maxConnections,
+
+        @Positive
+        int maxConnectionsPerRoute
 ) {
 }

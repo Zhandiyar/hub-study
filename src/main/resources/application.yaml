@@ -48,6 +48,10 @@ app:
       base-url: ${APP_REGISTRY_BASE_URL:http://localhost:8082}
       connect-timeout: ${APP_REGISTRY_CONNECT_TIMEOUT:2s}
       read-timeout: ${APP_REGISTRY_READ_TIMEOUT:3s}
+      connection-request-timeout: ${APP_REGISTRY_CONNECTION_REQUEST_TIMEOUT:1s}
+      idle-connection-timeout: ${APP_REGISTRY_IDLE_CONNECTION_TIMEOUT:30s}
+      max-connections: ${APP_REGISTRY_MAX_CONNECTIONS:100}
+      max-connections-per-route: ${APP_REGISTRY_MAX_CONNECTIONS_PER_ROUTE:100}
     keycloak:
       connect-timeout: ${KEYCLOAK_CONNECT_TIMEOUT:2s}
       read-timeout: ${KEYCLOAK_READ_TIMEOUT:3s}

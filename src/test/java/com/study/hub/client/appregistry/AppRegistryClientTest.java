@@ -127,4 +127,49 @@ class AppRegistryClientTest {
                 .hasMessage("App-registry is temporarily unavailable");
         server.verify();
     }
+
+    @Test
+    void rejectsIncompleteActiveConfiguration() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "appId": "insurance-app",
+                          "groupId": "insurance",
+                          "status": "ACTIVE",
+                          "maintenanceMessages": null,
+                          "version": 3,
+                          "sessionMode": null
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.getApplicationConfiguration("insurance-app"))
+                .isInstanceOf(AppRegistryUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
+    void rejectsMaintenanceConfigurationWithoutAllTranslations() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "appId": "insurance-app",
+                          "groupId": "insurance",
+                          "status": "MAINTENANCE",
+                          "maintenanceMessages": {
+                            "ru": "Технические работы",
+                            "kk": null,
+                            "en": "Maintenance"
+                          },
+                          "version": 4
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.getApplicationConfiguration("insurance-app"))
+                .isInstanceOf(AppRegistryUnavailableException.class);
+        server.verify();
+    }
 }

@@ -35,9 +35,8 @@ public class AppRegistryClient {
                     .retrieve()
                     .body(AppRegistryApplicationConfiguration.class);
 
-            if (configuration == null
-                    || configuration.status() == null
-                    || !appId.equals(configuration.appId())) {
+            if (isInvalidConfiguration(configuration, appId)) {
+                log.warn("App-registry returned invalid configuration for appId={}", appId);
                 throw new AppRegistryUnavailableException();
             }
             return configuration;
@@ -59,5 +58,59 @@ public class AppRegistryClient {
             );
             throw new AppRegistryUnavailableException(exception);
         }
+    }
+
+    private boolean isInvalidConfiguration(
+            AppRegistryApplicationConfiguration configuration,
+            String expectedAppId
+    ) {
+        if (configuration == null
+                || configuration.status() == null
+                || !expectedAppId.equals(configuration.appId())
+                || isBlank(configuration.groupId())
+                || configuration.version() < 0) {
+            return true;
+        }
+
+        return switch (configuration.status()) {
+            case ACTIVE -> isInvalidActiveConfiguration(configuration);
+            case MAINTENANCE -> isInvalidMaintenanceConfiguration(
+                    configuration.maintenanceMessages()
+            );
+            case DISABLED -> false;
+        };
+    }
+
+    private boolean isInvalidActiveConfiguration(
+            AppRegistryApplicationConfiguration configuration
+    ) {
+        var interfaceConfiguration = configuration.interfaceConfiguration();
+        var securityConfiguration = configuration.nativeSecurityConfiguration();
+        var financialConfiguration = configuration.financialConfiguration();
+
+        return configuration.sessionMode() == null
+                || interfaceConfiguration == null
+                || isBlank(interfaceConfiguration.entryUrl())
+                || isBlank(interfaceConfiguration.title())
+                || securityConfiguration == null
+                || securityConfiguration.allowedDomains() == null
+                || isBlank(securityConfiguration.contentSecurityPolicy())
+                || securityConfiguration.allowedBridgeMethods() == null
+                || financialConfiguration == null
+                || isBlank(financialConfiguration.merchantId())
+                || isBlank(financialConfiguration.paymentWebhookUrl());
+    }
+
+    private boolean isInvalidMaintenanceConfiguration(
+            AppRegistryApplicationConfiguration.MaintenanceMessages messages
+    ) {
+        return messages == null
+                || isBlank(messages.ru())
+                || isBlank(messages.kk())
+                || isBlank(messages.en());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
