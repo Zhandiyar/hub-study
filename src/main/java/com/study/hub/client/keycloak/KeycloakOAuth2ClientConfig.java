@@ -1,6 +1,5 @@
 package com.study.hub.client.keycloak;
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -13,7 +12,6 @@ import org.springframework.security.oauth2.core.http.converter.OAuth2AccessToken
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(KeycloakClientProperties.class)
 class KeycloakOAuth2ClientConfig {
 
     @Bean

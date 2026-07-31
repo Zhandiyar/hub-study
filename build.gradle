@@ -20,7 +20,6 @@ repositories {
 
 ext {
     logbookVersion = '3.12.3'
-    logstashLogbackVersion = '8.0'
     mapstructVersion = '1.6.3'
     springdocVersion = '2.8.17'
 }
@@ -35,9 +34,7 @@ dependencies {
     implementation 'org.apache.httpcomponents.client5:httpclient5'
     implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
-    implementation "org.zalando:logbook-logstash:${logbookVersion}"
     implementation "org.zalando:logbook-spring-boot-starter:${logbookVersion}"
-    implementation "net.logstash.logback:logstash-logback-encoder:${logstashLogbackVersion}"
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

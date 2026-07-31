@@ -13,7 +13,8 @@
 - OAuth2 Resource Server с проверкой JWT;
 - service-to-service OAuth2 `client_credentials` для вызова app-registry;
 - короткие connect/read timeout для app-registry и token endpoint Keycloak;
-- Apache HttpClient 5 с отдельным пулом соединений для app-registry;
+- Apache HttpClient 5, настроенный средствами Spring Boot;
+- ограниченное время ожидания свободного соединения из HTTP-пула;
 - передача correlation ID в app-registry;
 - `GET /hub/api/v1/{appId}`;
 - обработка статусов приложения `ACTIVE`, `DISABLED`, `MAINTENANCE`;
@@ -135,11 +136,13 @@ APP_REGISTRY_BASE_URL
 APP_PROBLEMS_BASE_URI
 ```
 
-Размер пула и timeout ожидания свободного соединения можно настроить через:
+Таймауты вызова app-registry можно настроить через:
 
 ```text
-APP_REGISTRY_MAX_CONNECTIONS
-APP_REGISTRY_MAX_CONNECTIONS_PER_ROUTE
+APP_REGISTRY_CONNECT_TIMEOUT
+APP_REGISTRY_READ_TIMEOUT
 APP_REGISTRY_CONNECTION_REQUEST_TIMEOUT
-APP_REGISTRY_IDLE_CONNECTION_TIMEOUT
 ```
+
+Размер HTTP-пула намеренно не задаётся произвольным числом в коде. Его следует
+менять только после нагрузочного тестирования и с учётом числа реплик Hub.

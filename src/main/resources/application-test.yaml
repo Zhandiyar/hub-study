@@ -3,10 +3,6 @@ spring:
     activate:
       on-profile: test
 
-log-config:
-  json-logging: false
-  mask-sensitive-data: true
-
 logging:
   level:
     root: WARN

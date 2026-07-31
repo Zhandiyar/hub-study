@@ -6,9 +6,18 @@ spring:
       enabled: true
   lifecycle:
     timeout-per-shutdown-phase: 20s
+  http:
+    client:
+      factory: http-components
+      connect-timeout: ${APP_REGISTRY_CONNECT_TIMEOUT:2s}
+      read-timeout: ${APP_REGISTRY_READ_TIMEOUT:3s}
+      redirects: dont-follow
   mvc:
     problemdetails:
       enabled: true
+  web:
+    locale: ru
+    locale-resolver: accept-header
   security:
     oauth2:
       client:
@@ -46,21 +55,12 @@ app:
   clients:
     app-registry:
       base-url: ${APP_REGISTRY_BASE_URL:http://localhost:8082}
-      connect-timeout: ${APP_REGISTRY_CONNECT_TIMEOUT:2s}
-      read-timeout: ${APP_REGISTRY_READ_TIMEOUT:3s}
       connection-request-timeout: ${APP_REGISTRY_CONNECTION_REQUEST_TIMEOUT:1s}
-      idle-connection-timeout: ${APP_REGISTRY_IDLE_CONNECTION_TIMEOUT:30s}
-      max-connections: ${APP_REGISTRY_MAX_CONNECTIONS:100}
-      max-connections-per-route: ${APP_REGISTRY_MAX_CONNECTIONS_PER_ROUTE:100}
     keycloak:
       connect-timeout: ${KEYCLOAK_CONNECT_TIMEOUT:2s}
       read-timeout: ${KEYCLOAK_READ_TIMEOUT:3s}
   problems:
     base-uri: ${APP_PROBLEMS_BASE_URI:https://api.example.com/hub/problems/}
-
-log-config:
-  json-logging: false
-  mask-sensitive-data: true
 
 logbook:
   format:
@@ -74,6 +74,7 @@ logbook:
       - path: /v3/api-docs/**
       - path: /favicon.ico
   obfuscate:
+    replacement: "***"
     headers:
       - Authorization
       - Cookie
@@ -81,10 +82,7 @@ logbook:
     parameters:
       - code
       - token
-  write:
-    max-body-size: 10000
-  masking:
-    sensitive-fields:
+    json-body-fields:
       - credentialId
       - credential_id
       - secret
@@ -92,6 +90,8 @@ logbook:
       - token
       - accessToken
       - refreshToken
+  write:
+    max-body-size: 10000
 
 springdoc:
   swagger-ui:
@@ -103,4 +103,4 @@ springdoc:
 logging:
   level:
     com.study.hub: INFO
-    org.zalando.logbook.Logbook: TRACE
+    org.zalando.logbook: TRACE

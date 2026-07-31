@@ -32,17 +32,19 @@ springdoc:
   swagger-ui:
     enabled: false
 
-log-config:
-  json-logging: true
-  mask-sensitive-data: true
-
 management:
   endpoint:
     health:
       show-details: never
 
 logging:
+  structured:
+    format:
+      console: logstash
+    json:
+      add:
+        service: ${spring.application.name}
   level:
     root: INFO
     com.study.hub: INFO
-    org.zalando.logbook.Logbook: TRACE
+    org.zalando.logbook: TRACE

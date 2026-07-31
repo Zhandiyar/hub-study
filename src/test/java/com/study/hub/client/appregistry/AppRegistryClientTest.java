@@ -150,6 +150,37 @@ class AppRegistryClientTest {
     }
 
     @Test
+    void acceptsActiveConfigurationWithoutUnusedFinancialConfiguration() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "appId": "insurance-app",
+                          "groupId": "insurance",
+                          "status": "ACTIVE",
+                          "version": 3,
+                          "sessionMode": "TOKEN",
+                          "interfaceConfiguration": {
+                            "entryUrl": "https://partner.example/app",
+                            "title": "Страхование"
+                          },
+                          "nativeSecurityConfiguration": {
+                            "allowedDomains": [],
+                            "contentSecurityPolicy": "default-src 'self'",
+                            "allowedBridgeMethods": []
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        AppRegistryApplicationConfiguration result =
+                client.getApplicationConfiguration("insurance-app");
+
+        assertThat(result.financialConfiguration()).isNull();
+        server.verify();
+    }
+
+    @Test
     void rejectsMaintenanceConfigurationWithoutAllTranslations() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/insurance-app/configuration"

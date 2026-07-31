@@ -1,6 +1,5 @@
 package com.study.hub.partnerapp;
 
-import com.study.hub.config.LocaleConfig;
 import com.study.hub.exception.ApplicationMaintenanceException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.AppRegistryUnavailableException;
@@ -31,6 +30,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class PartnerApplicationApiTest {
 
+    private static final Locale RUSSIAN = Locale.forLanguageTag("ru");
+    private static final Locale KAZAKH = Locale.forLanguageTag("kk");
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -60,12 +62,12 @@ class PartnerApplicationApiTest {
                 .andExpect(jsonPath("$.financialConfiguration").doesNotExist())
                 .andExpect(jsonPath("$.credentialId").doesNotExist());
 
-        verify(applicationService).getApplication("insurance-app", LocaleConfig.RUSSIAN);
+        verify(applicationService).getApplication("insurance-app", RUSSIAN);
     }
 
     @Test
     void passesRequestedLanguageToService() throws Exception {
-        when(applicationService.getApplication("insurance-app", LocaleConfig.KAZAKH))
+        when(applicationService.getApplication("insurance-app", KAZAKH))
                 .thenReturn(response());
 
         mockMvc.perform(get("/hub/api/v1/insurance-app")
@@ -73,7 +75,7 @@ class PartnerApplicationApiTest {
                         .with(jwt()))
                 .andExpect(status().isOk());
 
-        verify(applicationService).getApplication("insurance-app", LocaleConfig.KAZAKH);
+        verify(applicationService).getApplication("insurance-app", KAZAKH);
     }
 
     @Test

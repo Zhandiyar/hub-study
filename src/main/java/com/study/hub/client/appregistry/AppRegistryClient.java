@@ -86,7 +86,6 @@ public class AppRegistryClient {
     ) {
         var interfaceConfiguration = configuration.interfaceConfiguration();
         var securityConfiguration = configuration.nativeSecurityConfiguration();
-        var financialConfiguration = configuration.financialConfiguration();
 
         return configuration.sessionMode() == null
                 || interfaceConfiguration == null
@@ -95,10 +94,7 @@ public class AppRegistryClient {
                 || securityConfiguration == null
                 || securityConfiguration.allowedDomains() == null
                 || isBlank(securityConfiguration.contentSecurityPolicy())
-                || securityConfiguration.allowedBridgeMethods() == null
-                || financialConfiguration == null
-                || isBlank(financialConfiguration.merchantId())
-                || isBlank(financialConfiguration.paymentWebhookUrl());
+                || securityConfiguration.allowedBridgeMethods() == null;
     }
 
     private boolean isInvalidMaintenanceConfiguration(
