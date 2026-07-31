@@ -15,9 +15,6 @@ spring:
   mvc:
     problemdetails:
       enabled: true
-  web:
-    locale: ru
-    locale-resolver: accept-header
   security:
     oauth2:
       client:
@@ -55,7 +52,6 @@ app:
   clients:
     app-registry:
       base-url: ${APP_REGISTRY_BASE_URL:http://localhost:8082}
-      connection-request-timeout: ${APP_REGISTRY_CONNECTION_REQUEST_TIMEOUT:1s}
     keycloak:
       connect-timeout: ${KEYCLOAK_CONNECT_TIMEOUT:2s}
       read-timeout: ${KEYCLOAK_READ_TIMEOUT:3s}

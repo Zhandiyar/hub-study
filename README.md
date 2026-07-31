@@ -14,7 +14,6 @@
 - service-to-service OAuth2 `client_credentials` для вызова app-registry;
 - короткие connect/read timeout для app-registry и token endpoint Keycloak;
 - Apache HttpClient 5, настроенный средствами Spring Boot;
-- ограниченное время ожидания свободного соединения из HTTP-пула;
 - передача correlation ID в app-registry;
 - `GET /hub/api/v1/{appId}`;
 - обработка статусов приложения `ACTIVE`, `DISABLED`, `MAINTENANCE`;
@@ -38,18 +37,21 @@ GET /hub/api/v1/{appId}
 
 Поведение:
 
-- `ACTIVE` — `200 OK` и клиентская конфигурация;
-- `DISABLED` — `404 Not Found`, чтобы не раскрывать отключённое приложение;
-- `MAINTENANCE` — `503 Service Unavailable` и локализованное сообщение администратора;
+- найденное приложение в любом статусе — `200 OK`;
+- приложение не найдено — `404 Not Found`;
 - app-registry недоступен — `503 Service Unavailable`.
 
-Для статуса `MAINTENANCE` Hub выбирает сообщение по заголовку
-`Accept-Language`: `ru`, `kk` или `en`. Для отсутствующего или неподдерживаемого
-языка используется русский.
+Ответ содержит `status`: `ACTIVE`, `DISABLED` или `MAINTENANCE`. Для
+`MAINTENANCE` также возвращаются сообщения `ru`, `kk`, `en`; нужный язык
+выбирает frontend.
 
 Ответ содержит `Cache-Control: no-store`, поэтому изменение статуса в
 app-registry не должно оставаться в HTTP-кэше. Финансовая конфигурация,
 `paymentWebhookUrl` и `credentialId` наружу не возвращаются.
+
+Конфигурационный GET только сообщает frontend текущее состояние. Будущие
+операции с договором и сессией должны дополнительно проверять на backend, что
+приложение находится в статусе `ACTIVE`.
 
 ## Следующие API
 
@@ -141,8 +143,4 @@ APP_PROBLEMS_BASE_URI
 ```text
 APP_REGISTRY_CONNECT_TIMEOUT
 APP_REGISTRY_READ_TIMEOUT
-APP_REGISTRY_CONNECTION_REQUEST_TIMEOUT
 ```
-
-Размер HTTP-пула намеренно не задаётся произвольным числом в коде. Его следует
-менять только после нагрузочного тестирования и с учётом числа реплик Hub.

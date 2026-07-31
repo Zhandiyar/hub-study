@@ -12,6 +12,12 @@ public record PartnerApplicationResponse(
         @Schema(description = "Идентификатор группы приложений", example = "insurance")
         String groupId,
 
+        @Schema(description = "Текущий статус приложения")
+        ApplicationStatus status,
+
+        @Schema(description = "Сообщения о технических работах")
+        MaintenanceMessages maintenanceMessages,
+
         @Schema(description = "Версия конфигурации", example = "3")
         long version,
 
@@ -24,6 +30,13 @@ public record PartnerApplicationResponse(
         @Schema(description = "Настройки нативной безопасности")
         NativeSecurityConfiguration nativeSecurityConfiguration
 ) {
+
+    public record MaintenanceMessages(
+            String ru,
+            String kk,
+            String en
+    ) {
+    }
 
     public record InterfaceConfiguration(
             @Schema(description = "HTTPS-адрес пользовательского интерфейса партнёра")

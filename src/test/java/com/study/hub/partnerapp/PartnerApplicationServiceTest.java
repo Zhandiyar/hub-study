@@ -2,8 +2,6 @@ package com.study.hub.partnerapp;
 
 import com.study.hub.client.appregistry.AppRegistryApplicationConfiguration;
 import com.study.hub.client.appregistry.AppRegistryClient;
-import com.study.hub.exception.ApplicationMaintenanceException;
-import com.study.hub.exception.ApplicationNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mapstruct.factory.Mappers;
@@ -11,10 +9,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,14 +27,15 @@ class PartnerApplicationServiceTest {
         var service = new PartnerApplicationService(appRegistryClient, mapper);
         when(appRegistryClient.getApplicationConfiguration("insurance-app"))
                 .thenReturn(configuration(
-                        AppRegistryApplicationConfiguration.ApplicationStatus.ACTIVE,
+                        ApplicationStatus.ACTIVE,
                         null
                 ));
 
         PartnerApplicationResponse result =
-                service.getApplication("insurance-app", Locale.forLanguageTag("ru"));
+                service.getApplication("insurance-app");
 
         assertThat(result.appId()).isEqualTo("insurance-app");
+        assertThat(result.status()).isEqualTo(ApplicationStatus.ACTIVE);
         assertThat(result.sessionMode()).isEqualTo(SessionMode.TOKEN);
         assertThat(result.interfaceConfiguration().entryUrl())
                 .isEqualTo("https://partner.example/app");
@@ -47,57 +44,41 @@ class PartnerApplicationServiceTest {
     }
 
     @Test
-    void hidesDisabledApplicationAsNotFound() {
+    void returnsDisabledStatusToFrontend() {
         var service = new PartnerApplicationService(appRegistryClient, mapper);
         when(appRegistryClient.getApplicationConfiguration("insurance-app"))
                 .thenReturn(configuration(
-                        AppRegistryApplicationConfiguration.ApplicationStatus.DISABLED,
+                        ApplicationStatus.DISABLED,
                         null
                 ));
 
-        assertThatThrownBy(() -> service.getApplication(
-                "insurance-app",
-                Locale.forLanguageTag("ru")
-        ))
-                .isInstanceOf(ApplicationNotFoundException.class);
+        PartnerApplicationResponse result = service.getApplication("insurance-app");
+
+        assertThat(result.status()).isEqualTo(ApplicationStatus.DISABLED);
     }
 
     @Test
-    void returnsKazakhMaintenanceMessageAsServiceUnavailableError() {
+    void returnsMaintenanceStatusAndAllTranslationsToFrontend() {
         var service = new PartnerApplicationService(appRegistryClient, mapper);
         when(appRegistryClient.getApplicationConfiguration("insurance-app"))
                 .thenReturn(configuration(
-                        AppRegistryApplicationConfiguration.ApplicationStatus.MAINTENANCE,
+                        ApplicationStatus.MAINTENANCE,
                         maintenanceMessages()
                 ));
 
-        assertThatThrownBy(() -> service.getApplication(
-                "insurance-app",
-                Locale.forLanguageTag("kk")
-        ))
-                .isInstanceOf(ApplicationMaintenanceException.class)
-                .hasMessage("Техникалық жұмыстар сағат 18:00-ге дейін");
-    }
+        PartnerApplicationResponse result = service.getApplication("insurance-app");
 
-    @Test
-    void usesRussianMaintenanceMessageForUnsupportedLanguage() {
-        var service = new PartnerApplicationService(appRegistryClient, mapper);
-        when(appRegistryClient.getApplicationConfiguration("insurance-app"))
-                .thenReturn(configuration(
-                        AppRegistryApplicationConfiguration.ApplicationStatus.MAINTENANCE,
-                        maintenanceMessages()
-                ));
-
-        assertThatThrownBy(() -> service.getApplication(
-                "insurance-app",
-                Locale.FRENCH
-        ))
-                .isInstanceOf(ApplicationMaintenanceException.class)
-                .hasMessage("Технические работы до 18:00");
+        assertThat(result.status()).isEqualTo(ApplicationStatus.MAINTENANCE);
+        assertThat(result.maintenanceMessages().ru())
+                .isEqualTo("Технические работы до 18:00");
+        assertThat(result.maintenanceMessages().kk())
+                .isEqualTo("Техникалық жұмыстар сағат 18:00-ге дейін");
+        assertThat(result.maintenanceMessages().en())
+                .isEqualTo("Maintenance until 18:00");
     }
 
     private AppRegistryApplicationConfiguration configuration(
-            AppRegistryApplicationConfiguration.ApplicationStatus status,
+            ApplicationStatus status,
             AppRegistryApplicationConfiguration.MaintenanceMessages maintenanceMessages
     ) {
         return new AppRegistryApplicationConfiguration(

@@ -7,7 +7,6 @@ public enum ProblemType {
     FORBIDDEN("forbidden", "FORBIDDEN"),
     MALFORMED_REQUEST("malformed-request", "MALFORMED_REQUEST"),
     APPLICATION_NOT_FOUND("application-not-found", "APPLICATION_NOT_FOUND"),
-    APPLICATION_MAINTENANCE("application-maintenance", "APPLICATION_MAINTENANCE"),
     DEPENDENCY_UNAVAILABLE("dependency-unavailable", "DEPENDENCY_UNAVAILABLE"),
     INTERNAL("internal", "INTERNAL_ERROR");
 

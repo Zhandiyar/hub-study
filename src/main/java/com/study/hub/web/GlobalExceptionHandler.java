@@ -1,6 +1,5 @@
 package com.study.hub.web;
 
-import com.study.hub.exception.ApplicationMaintenanceException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,22 +43,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         "Application not found",
                         "Partner application was not found",
                         ProblemType.APPLICATION_NOT_FOUND,
-                        request.getRequestURI()
-                ));
-    }
-
-    @ExceptionHandler(ApplicationMaintenanceException.class)
-    public ResponseEntity<ProblemDetail> handleApplicationMaintenance(
-            ApplicationMaintenanceException exception,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .cacheControl(CacheControl.noStore())
-                .body(problemDetailFactory.create(
-                        HttpStatus.SERVICE_UNAVAILABLE,
-                        "Application maintenance",
-                        exception.getMessage(),
-                        ProblemType.APPLICATION_MAINTENANCE,
                         request.getRequestURI()
                 ));
     }

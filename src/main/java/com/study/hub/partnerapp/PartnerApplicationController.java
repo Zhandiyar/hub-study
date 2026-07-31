@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -15,15 +14,11 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Locale;
-
-@Validated
 @RestController
 @RequestMapping("/hub/api/v1")
 @RequiredArgsConstructor
@@ -40,7 +35,7 @@ public class PartnerApplicationController {
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Приложение активно",
+                    description = "Приложение найдено; состояние передано в поле status",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PartnerApplicationResponse.class)
@@ -64,7 +59,7 @@ public class PartnerApplicationController {
             ),
             @ApiResponse(
                     responseCode = "404",
-                    description = "Приложение не найдено или отключено",
+                    description = "Приложение не найдено",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(implementation = ProblemDetail.class)
@@ -72,7 +67,7 @@ public class PartnerApplicationController {
             ),
             @ApiResponse(
                     responseCode = "503",
-                    description = "Технические работы или недоступна зависимость",
+                    description = "App Registry временно недоступен",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(implementation = ProblemDetail.class)
@@ -82,17 +77,15 @@ public class PartnerApplicationController {
     public ResponseEntity<PartnerApplicationResponse> getApplication(
             @Parameter(description = "Уникальный идентификатор приложения", example = "insurance-app")
             @PathVariable
-            @NotBlank
             @Size(max = 64)
             @Pattern(
                     regexp = "[a-z0-9][a-z0-9._-]*",
                     message = "must contain only lowercase letters, digits, dots, underscores or hyphens"
             )
-            String appId,
-            Locale locale
+            String appId
     ) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(applicationService.getApplication(appId, locale));
+                .body(applicationService.getApplication(appId));
     }
 }

@@ -1,10 +1,8 @@
 package com.study.hub.client.appregistry;
 
 import com.study.hub.web.TraceContext;
-import org.apache.hc.core5.util.Timeout;
 import org.slf4j.MDC;
-import org.springframework.boot.autoconfigure.http.client.ClientHttpRequestFactoryBuilderCustomizer;
-import org.springframework.boot.http.client.HttpComponentsClientHttpRequestFactoryBuilder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpRequest;
@@ -14,24 +12,15 @@ import org.springframework.security.oauth2.client.web.client.OAuth2ClientHttpReq
 import org.springframework.security.oauth2.client.web.client.RequestAttributePrincipalResolver;
 import org.springframework.web.client.RestClient;
 
+import java.net.URI;
+
 @Configuration(proxyBeanMethods = false)
 class AppRegistryClientConfig {
 
     @Bean
-    ClientHttpRequestFactoryBuilderCustomizer<HttpComponentsClientHttpRequestFactoryBuilder>
-    connectionRequestTimeoutCustomizer(
-            AppRegistryClientProperties properties
-    ) {
-        return builder -> builder.withDefaultRequestConfigCustomizer(requestConfig ->
-                requestConfig.setConnectionRequestTimeout(
-                        Timeout.of(properties.connectionRequestTimeout())
-                ));
-    }
-
-    @Bean
     RestClient appRegistryRestClient(
             RestClient.Builder builder,
-            AppRegistryClientProperties properties,
+            @Value("${app.clients.app-registry.base-url}") URI baseUrl,
             OAuth2AuthorizedClientManager authorizedClientManager,
             OAuth2AuthorizedClientService authorizedClientService
     ) {
@@ -44,7 +33,7 @@ class AppRegistryClientConfig {
         );
 
         return builder
-                .baseUrl(properties.baseUrl().toString())
+                .baseUrl(baseUrl.toString())
                 .requestInterceptor((request, body, execution) -> {
                     copyMdcHeader(request, TraceContext.TRACE_ID_HEADER, TraceContext.TRACE_ID_MDC_KEY);
                     copyMdcHeader(

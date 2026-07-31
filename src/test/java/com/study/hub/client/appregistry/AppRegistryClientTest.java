@@ -2,6 +2,7 @@ package com.study.hub.client.appregistry;
 
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.AppRegistryUnavailableException;
+import com.study.hub.partnerapp.ApplicationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -66,8 +67,7 @@ class AppRegistryClientTest {
                 client.getApplicationConfiguration("insurance-app");
 
         assertThat(result.appId()).isEqualTo("insurance-app");
-        assertThat(result.status())
-                .isEqualTo(AppRegistryApplicationConfiguration.ApplicationStatus.ACTIVE);
+        assertThat(result.status()).isEqualTo(ApplicationStatus.ACTIVE);
         assertThat(result.sessionMode()).isEqualTo(com.study.hub.partnerapp.SessionMode.TOKEN);
         assertThat(result.financialConfiguration().credentialId())
                 .isEqualTo("partner-app-credential");
@@ -129,7 +129,7 @@ class AppRegistryClientTest {
     }
 
     @Test
-    void rejectsIncompleteActiveConfiguration() {
+    void returnsConfigurationWithoutDuplicatingAppRegistryBusinessValidation() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
                 ))
@@ -144,44 +144,17 @@ class AppRegistryClientTest {
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.getApplicationConfiguration("insurance-app"))
-                .isInstanceOf(AppRegistryUnavailableException.class);
-        server.verify();
-    }
-
-    @Test
-    void acceptsActiveConfigurationWithoutUnusedFinancialConfiguration() {
-        server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
-                ))
-                .andRespond(withSuccess("""
-                        {
-                          "appId": "insurance-app",
-                          "groupId": "insurance",
-                          "status": "ACTIVE",
-                          "version": 3,
-                          "sessionMode": "TOKEN",
-                          "interfaceConfiguration": {
-                            "entryUrl": "https://partner.example/app",
-                            "title": "Страхование"
-                          },
-                          "nativeSecurityConfiguration": {
-                            "allowedDomains": [],
-                            "contentSecurityPolicy": "default-src 'self'",
-                            "allowedBridgeMethods": []
-                          }
-                        }
-                        """, MediaType.APPLICATION_JSON));
-
         AppRegistryApplicationConfiguration result =
                 client.getApplicationConfiguration("insurance-app");
 
+        assertThat(result.status()).isEqualTo(ApplicationStatus.ACTIVE);
+        assertThat(result.sessionMode()).isNull();
         assertThat(result.financialConfiguration()).isNull();
         server.verify();
     }
 
     @Test
-    void rejectsMaintenanceConfigurationWithoutAllTranslations() {
+    void returnsMaintenanceMessagesAsProvidedByAppRegistry() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
                 ))
@@ -198,6 +171,21 @@ class AppRegistryClientTest {
                           "version": 4
                         }
                         """, MediaType.APPLICATION_JSON));
+
+        AppRegistryApplicationConfiguration result =
+                client.getApplicationConfiguration("insurance-app");
+
+        assertThat(result.status()).isEqualTo(ApplicationStatus.MAINTENANCE);
+        assertThat(result.maintenanceMessages().kk()).isNull();
+        server.verify();
+    }
+
+    @Test
+    void rejectsSuccessfulResponseWithoutConfigurationBody() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
+                ))
+                .andRespond(withSuccess());
 
         assertThatThrownBy(() -> client.getApplicationConfiguration("insurance-app"))
                 .isInstanceOf(AppRegistryUnavailableException.class);

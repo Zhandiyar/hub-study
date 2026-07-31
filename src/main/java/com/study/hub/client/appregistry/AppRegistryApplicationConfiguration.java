@@ -1,5 +1,6 @@
 package com.study.hub.client.appregistry;
 
+import com.study.hub.partnerapp.ApplicationStatus;
 import com.study.hub.partnerapp.SessionMode;
 
 import java.util.List;
@@ -15,12 +16,6 @@ public record AppRegistryApplicationConfiguration(
         NativeSecurityConfiguration nativeSecurityConfiguration,
         FinancialConfiguration financialConfiguration
 ) {
-
-    public enum ApplicationStatus {
-        ACTIVE,
-        DISABLED,
-        MAINTENANCE
-    }
 
     public record MaintenanceMessages(
             String ru,
