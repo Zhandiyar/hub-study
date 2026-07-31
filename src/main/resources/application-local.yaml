@@ -1,0 +1,27 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  security:
+    oauth2:
+      client:
+        registration:
+          app-registry:
+            client-id: hub
+            client-secret: local-dev-only
+        provider:
+          keycloak:
+            token-uri: http://localhost:8081/realms/hub/protocol/openid-connect/token
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/hub
+          jwk-set-uri: http://localhost:8081/realms/hub/protocol/openid-connect/certs
+          audiences:
+            - hub
+
+app:
+  clients:
+    app-registry:
+      base-url: http://localhost:8082
+  problems:
+    base-uri: https://api.example.com/hub/problems/

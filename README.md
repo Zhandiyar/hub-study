@@ -115,11 +115,16 @@ resource_access.app-registry.roles
 
 ## Локальный запуск
 
-Требуется JDK 21:
+Требуется JDK 21. Локальные URL и тестовые credentials находятся только в
+профиле `local`:
 
 ```bash
-./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 ```
+
+В IntelliJ IDEA укажите `local` в поле **Active profiles** конфигурации запуска.
+Без профиля `local`, `test` или `prod` приложение требует явно передать все
+обязательные переменные окружения и завершит запуск при их отсутствии.
 
 По умолчанию Hub запускается на `8080` и обращается к App Registry на `8082`.
 Поэтому для одновременного локального запуска App Registry нужно передать ему:
@@ -152,4 +157,6 @@ http://localhost:8080/swagger-ui
 ```text
 APP_REGISTRY_CONNECT_TIMEOUT
 APP_REGISTRY_READ_TIMEOUT
+KEYCLOAK_CONNECT_TIMEOUT
+KEYCLOAK_READ_TIMEOUT
 ```

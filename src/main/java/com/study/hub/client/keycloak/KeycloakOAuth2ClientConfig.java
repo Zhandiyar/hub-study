@@ -1,8 +1,9 @@
 package com.study.hub.client.keycloak;
 
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2ClientCredentialsGrantRequest;
@@ -17,9 +18,11 @@ class KeycloakOAuth2ClientConfig {
     @Bean
     OAuth2AccessTokenResponseClient<OAuth2ClientCredentialsGrantRequest>
     clientCredentialsTokenResponseClient(KeycloakClientProperties properties) {
-        var requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(properties.connectTimeout());
-        requestFactory.setReadTimeout(properties.readTimeout());
+        var requestFactorySettings = ClientHttpRequestFactorySettings.defaults()
+                .withTimeouts(properties.connectTimeout(), properties.readTimeout())
+                .withRedirects(ClientHttpRequestFactorySettings.Redirects.DONT_FOLLOW);
+        var requestFactory = ClientHttpRequestFactoryBuilder.httpComponents()
+                .build(requestFactorySettings);
 
         RestClient tokenRestClient = RestClient.builder()
                 .requestFactory(requestFactory)

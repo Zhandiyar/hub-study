@@ -21,19 +21,19 @@ spring:
         registration:
           app-registry:
             provider: keycloak
-            client-id: ${HUB_CLIENT_ID:hub}
-            client-secret: ${HUB_CLIENT_SECRET:local-dev-only}
+            client-id: ${HUB_CLIENT_ID}
+            client-secret: ${HUB_CLIENT_SECRET}
             client-authentication-method: client_secret_basic
             authorization-grant-type: client_credentials
         provider:
           keycloak:
-            token-uri: ${KEYCLOAK_TOKEN_URI:http://localhost:8081/realms/hub/protocol/openid-connect/token}
+            token-uri: ${KEYCLOAK_TOKEN_URI}
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/hub}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/hub/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
           audiences:
-            - ${KEYCLOAK_AUDIENCE:hub}
+            - ${KEYCLOAK_AUDIENCE}
 
 server:
   shutdown: graceful
@@ -51,12 +51,12 @@ management:
 app:
   clients:
     app-registry:
-      base-url: ${APP_REGISTRY_BASE_URL:http://localhost:8082}
+      base-url: ${APP_REGISTRY_BASE_URL}
     keycloak:
       connect-timeout: ${KEYCLOAK_CONNECT_TIMEOUT:2s}
       read-timeout: ${KEYCLOAK_READ_TIMEOUT:3s}
   problems:
-    base-uri: ${APP_PROBLEMS_BASE_URI:https://api.example.com/hub/problems/}
+    base-uri: ${APP_PROBLEMS_BASE_URI}
 
 logbook:
   format:

@@ -2,29 +2,6 @@ spring:
   config:
     activate:
       on-profile: prod
-  security:
-    oauth2:
-      client:
-        registration:
-          app-registry:
-            client-id: ${HUB_CLIENT_ID}
-            client-secret: ${HUB_CLIENT_SECRET}
-        provider:
-          keycloak:
-            token-uri: ${KEYCLOAK_TOKEN_URI}
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
-          audiences:
-            - ${KEYCLOAK_AUDIENCE}
-
-app:
-  clients:
-    app-registry:
-      base-url: ${APP_REGISTRY_BASE_URL}
-  problems:
-    base-uri: ${APP_PROBLEMS_BASE_URI}
 
 springdoc:
   api-docs:

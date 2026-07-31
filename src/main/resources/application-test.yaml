@@ -2,6 +2,29 @@ spring:
   config:
     activate:
       on-profile: test
+  security:
+    oauth2:
+      client:
+        registration:
+          app-registry:
+            client-id: hub-test
+            client-secret: hub-test-secret
+        provider:
+          keycloak:
+            token-uri: http://localhost:8081/realms/test/protocol/openid-connect/token
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/test
+          jwk-set-uri: http://localhost:8081/realms/test/protocol/openid-connect/certs
+          audiences:
+            - hub
+
+app:
+  clients:
+    app-registry:
+      base-url: http://localhost:8082
+  problems:
+    base-uri: https://api.example.com/hub/problems/
 
 logging:
   level:
