@@ -37,9 +37,11 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/hub/api/v1/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/hub/api/v1/applications/*")
+                        .authenticated()
                         .requestMatchers(HttpMethod.GET, "/hub/api/v1/groups/*").authenticated()
-                        .requestMatchers(HttpMethod.HEAD, "/hub/api/v1/*").authenticated()
+                        .requestMatchers(HttpMethod.HEAD, "/hub/api/v1/applications/*")
+                        .authenticated()
                         .requestMatchers(HttpMethod.HEAD, "/hub/api/v1/groups/*").authenticated()
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2

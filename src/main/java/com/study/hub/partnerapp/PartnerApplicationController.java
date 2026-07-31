@@ -33,7 +33,7 @@ public class PartnerApplicationController {
 
     private final PartnerApplicationService applicationService;
 
-    @GetMapping("/{appId}")
+    @GetMapping("/applications/{appId}")
     @Operation(summary = "Получить конфигурацию партнёрского приложения")
     @ApiResponses({
             @ApiResponse(

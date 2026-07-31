@@ -15,7 +15,7 @@
 - короткие connect/read timeout для app-registry и token endpoint Keycloak;
 - Apache HttpClient 5, настроенный средствами Spring Boot;
 - передача correlation ID в app-registry;
-- `GET /hub/api/v1/{appId}`;
+- `GET /hub/api/v1/applications/{appId}`;
 - `GET /hub/api/v1/groups/{groupId}` с пагинацией;
 - обработка статусов приложения `ACTIVE`, `DISABLED`, `MAINTENANCE`;
 - безопасный внешний DTO без финансовой конфигурации и `credentialId`;
@@ -33,7 +33,7 @@
 ## Реализованный API
 
 ```text
-GET /hub/api/v1/{appId}
+GET /hub/api/v1/applications/{appId}
 GET /hub/api/v1/groups/{groupId}?page=0&size=20
 ```
 
@@ -65,9 +65,9 @@ app-registry не должно оставаться в HTTP-кэше. Финан
 Их контракты нужно утверждать перед реализацией:
 
 ```text
-GET  /hub/api/v1/{appId}/{contractNumber}
-POST /hub/api/v1/{appId}/session/token
-POST /hub/api/v1/{appId}/session/code
+GET  /hub/api/v1/applications/{appId}/contracts/{contractNumber}
+POST /hub/api/v1/applications/{appId}/sessions/token
+POST /hub/api/v1/applications/{appId}/sessions/code
 ```
 
 Создание session token/code использует `POST`, потому что операция создаёт

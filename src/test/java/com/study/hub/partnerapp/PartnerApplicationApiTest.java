@@ -38,14 +38,14 @@ class PartnerApplicationApiTest {
 
     @Test
     void requiresJwt() throws Exception {
-        mockMvc.perform(get("/hub/api/v1/insurance-app"))
+        mockMvc.perform(get("/hub/api/v1/applications/insurance-app"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
     @Test
     void rejectsInvalidAppIdAsRfc9457Problem() throws Exception {
-        mockMvc.perform(get("/hub/api/v1/Insurance-App").with(jwt()))
+        mockMvc.perform(get("/hub/api/v1/applications/Insurance-App").with(jwt()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.errors.appId").isArray());
@@ -56,7 +56,7 @@ class PartnerApplicationApiTest {
         when(applicationService.getApplication("insurance-app"))
                 .thenReturn(activeResponse());
 
-        mockMvc.perform(get("/hub/api/v1/insurance-app").with(jwt()))
+        mockMvc.perform(get("/hub/api/v1/applications/insurance-app").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.appId").value("insurance-app"))
@@ -76,7 +76,7 @@ class PartnerApplicationApiTest {
                         maintenanceMessages()
                 ));
 
-        mockMvc.perform(get("/hub/api/v1/insurance-app").with(jwt()))
+        mockMvc.perform(get("/hub/api/v1/applications/insurance-app").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.status").value("MAINTENANCE"))
@@ -93,7 +93,7 @@ class PartnerApplicationApiTest {
         when(applicationService.getApplication("insurance-app"))
                 .thenReturn(statusResponse(ApplicationStatus.DISABLED, null));
 
-        mockMvc.perform(get("/hub/api/v1/insurance-app").with(jwt()))
+        mockMvc.perform(get("/hub/api/v1/applications/insurance-app").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.status").value("DISABLED"));
@@ -104,7 +104,7 @@ class PartnerApplicationApiTest {
         when(applicationService.getApplication("insurance-app"))
                 .thenThrow(new ApplicationNotFoundException());
 
-        mockMvc.perform(get("/hub/api/v1/insurance-app").with(jwt()))
+        mockMvc.perform(get("/hub/api/v1/applications/insurance-app").with(jwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.code").value("APPLICATION_NOT_FOUND"));
@@ -115,11 +115,18 @@ class PartnerApplicationApiTest {
         when(applicationService.getApplication("insurance-app"))
                 .thenThrow(new AppRegistryUnavailableException());
 
-        mockMvc.perform(get("/hub/api/v1/insurance-app").with(jwt()))
+        mockMvc.perform(get("/hub/api/v1/applications/insurance-app").with(jwt()))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("DEPENDENCY_UNAVAILABLE"))
                 .andExpect(jsonPath("$.detail")
                         .value("Required configuration service is temporarily unavailable"));
+    }
+
+    @Test
+    void doesNotExposeLegacyApplicationPath() throws Exception {
+        mockMvc.perform(get("/hub/api/v1/insurance-app").with(jwt()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @Test
