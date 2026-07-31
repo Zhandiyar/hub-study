@@ -1,7 +1,8 @@
 package com.study.hub.partnerapp;
 
-import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.AppRegistryUnavailableException;
+import com.study.hub.exception.ApplicationGroupNotFoundException;
+import com.study.hub.exception.ApplicationNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -119,6 +120,54 @@ class PartnerApplicationApiTest {
                 .andExpect(jsonPath("$.code").value("DEPENDENCY_UNAVAILABLE"))
                 .andExpect(jsonPath("$.detail")
                         .value("Required configuration service is temporarily unavailable"));
+    }
+
+    @Test
+    void returnsApplicationGroupWithoutInternalFinancialConfiguration() throws Exception {
+        when(applicationService.getApplicationGroup("insurance", 0, 20))
+                .thenReturn(new PartnerApplicationGroupResponse(
+                        "insurance",
+                        "Страхование",
+                        1,
+                        List.of(activeResponse()),
+                        0,
+                        20,
+                        1,
+                        1
+                ));
+
+        mockMvc.perform(get("/hub/api/v1/groups/insurance").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.groupId").value("insurance"))
+                .andExpect(jsonPath("$.displayName").value("Страхование"))
+                .andExpect(jsonPath("$.applications[0].appId").value("insurance-app"))
+                .andExpect(jsonPath("$.applications[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.applications[0].financialConfiguration").doesNotExist())
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        verify(applicationService).getApplicationGroup("insurance", 0, 20);
+    }
+
+    @Test
+    void rejectsInvalidGroupPagination() throws Exception {
+        mockMvc.perform(get("/hub/api/v1/groups/insurance")
+                        .queryParam("size", "101")
+                        .with(jwt()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.errors.size").isArray());
+    }
+
+    @Test
+    void returnsMissingApplicationGroupAsNotFound() throws Exception {
+        when(applicationService.getApplicationGroup("insurance", 0, 20))
+                .thenThrow(new ApplicationGroupNotFoundException());
+
+        mockMvc.perform(get("/hub/api/v1/groups/insurance").with(jwt()))
+                .andExpect(status().isNotFound())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.code").value("APPLICATION_GROUP_NOT_FOUND"));
     }
 
     private PartnerApplicationResponse activeResponse() {

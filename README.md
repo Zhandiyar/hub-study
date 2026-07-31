@@ -16,6 +16,7 @@
 - Apache HttpClient 5, настроенный средствами Spring Boot;
 - передача correlation ID в app-registry;
 - `GET /hub/api/v1/{appId}`;
+- `GET /hub/api/v1/groups/{groupId}` с пагинацией;
 - обработка статусов приложения `ACTIVE`, `DISABLED`, `MAINTENANCE`;
 - безопасный внешний DTO без финансовой конфигурации и `credentialId`;
 - безопасное правило `denyAll` для всех ещё не реализованных API;
@@ -33,6 +34,7 @@
 
 ```text
 GET /hub/api/v1/{appId}
+GET /hub/api/v1/groups/{groupId}?page=0&size=20
 ```
 
 Поведение:
@@ -49,6 +51,11 @@ GET /hub/api/v1/{appId}
 app-registry не должно оставаться в HTTP-кэше. Финансовая конфигурация,
 `paymentWebhookUrl` и `credentialId` наружу не возвращаются.
 
+Групповой endpoint возвращает метаданные группы и страницу её приложений.
+`page` начинается с `0`, допустимый `size` — от `1` до `100`. Статус и три
+локализованных сообщения каждого приложения передаются frontend без изменения;
+финансовая конфигурация из вложенных приложений также исключается.
+
 Конфигурационный GET только сообщает frontend текущее состояние. Будущие
 операции с договором и сессией должны дополнительно проверять на backend, что
 приложение находится в статусе `ACTIVE`.
@@ -58,7 +65,6 @@ app-registry не должно оставаться в HTTP-кэше. Финан
 Их контракты нужно утверждать перед реализацией:
 
 ```text
-GET  /hub/api/v1/groups/{groupId}
 GET  /hub/api/v1/{appId}/{contractNumber}
 POST /hub/api/v1/{appId}/session/token
 POST /hub/api/v1/{appId}/session/code
@@ -75,7 +81,11 @@ service token по `client_credentials` и вызывает:
 
 ```text
 GET /internal/api/v1/applications/{appId}/configuration
+GET /internal/api/v1/groups/{groupId}/applications?page=0&size=20
 ```
+
+Для группы используется один агрегированный вызов: Hub не запрашивает отдельно
+метаданные группы и отдельно её приложения.
 
 В Keycloak нужны:
 
@@ -99,10 +109,9 @@ resource_access.app-registry.roles
 
 ## Предстоящие шаги
 
-1. Реализовать получение приложений группы.
-2. Определить безопасное сопоставление `appId` с партнёрским микросервисом.
-3. Утвердить контракт запроса по `contractNumber`.
-4. Реализовать session flow с проверкой `sessionMode`.
+1. Определить безопасное сопоставление `appId` с партнёрским микросервисом.
+2. Утвердить контракт запроса по `contractNumber`.
+3. Реализовать session flow с проверкой `sessionMode`.
 
 ## Локальный запуск
 
@@ -127,16 +136,16 @@ http://localhost:8080/swagger-ui
 
 Для production обязательны:
 
-```text
-KEYCLOAK_ISSUER_URI
-KEYCLOAK_JWK_SET_URI
-KEYCLOAK_AUDIENCE
-KEYCLOAK_TOKEN_URI
-APP_REGISTRY_CLIENT_ID
-APP_REGISTRY_CLIENT_SECRET
-APP_REGISTRY_BASE_URL
-APP_PROBLEMS_BASE_URI
-```
+| Переменная | Назначение |
+|---|---|
+| `KEYCLOAK_ISSUER_URI` | Issuer realm для проверки входящего JWT |
+| `KEYCLOAK_JWK_SET_URI` | Адрес публичных ключей Keycloak |
+| `KEYCLOAK_AUDIENCE` | Ожидаемый audience входящего JWT; обычно `hub` |
+| `KEYCLOAK_TOKEN_URI` | Token endpoint для `client_credentials` |
+| `HUB_CLIENT_ID` | Client ID service account Hub; обычно `hub` |
+| `HUB_CLIENT_SECRET` | Секрет service account Hub |
+| `APP_REGISTRY_BASE_URL` | Внутренний адрес App Registry |
+| `APP_PROBLEMS_BASE_URI` | Базовый URI типов Problem Details |
 
 Таймауты вызова app-registry можно настроить через:
 

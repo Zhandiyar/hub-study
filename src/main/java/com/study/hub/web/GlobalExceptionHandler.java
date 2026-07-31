@@ -1,7 +1,8 @@
 package com.study.hub.web;
 
-import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.AppRegistryUnavailableException;
+import com.study.hub.exception.ApplicationGroupNotFoundException;
+import com.study.hub.exception.ApplicationNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         "Application not found",
                         "Partner application was not found",
                         ProblemType.APPLICATION_NOT_FOUND,
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(ApplicationGroupNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleApplicationGroupNotFound(
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .cacheControl(CacheControl.noStore())
+                .body(problemDetailFactory.create(
+                        HttpStatus.NOT_FOUND,
+                        "Application group not found",
+                        "Partner application group was not found",
+                        ProblemType.APPLICATION_GROUP_NOT_FOUND,
                         request.getRequestURI()
                 ));
     }

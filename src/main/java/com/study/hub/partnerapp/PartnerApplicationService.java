@@ -14,4 +14,12 @@ public class PartnerApplicationService {
     public PartnerApplicationResponse getApplication(String appId) {
         return mapper.toResponse(appRegistryClient.getApplicationConfiguration(appId));
     }
+
+    public PartnerApplicationGroupResponse getApplicationGroup(
+            String groupId,
+            int page,
+            int size
+    ) {
+        return mapper.toResponse(appRegistryClient.getApplicationGroup(groupId, page, size));
+    }
 }

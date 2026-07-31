@@ -7,8 +7,8 @@ spring:
       client:
         registration:
           app-registry:
-            client-id: ${APP_REGISTRY_CLIENT_ID}
-            client-secret: ${APP_REGISTRY_CLIENT_SECRET}
+            client-id: ${HUB_CLIENT_ID}
+            client-secret: ${HUB_CLIENT_SECRET}
         provider:
           keycloak:
             token-uri: ${KEYCLOAK_TOKEN_URI}

@@ -1,6 +1,7 @@
 package com.study.hub.partnerapp;
 
 import com.study.hub.client.appregistry.AppRegistryApplicationConfiguration;
+import com.study.hub.client.appregistry.AppRegistryApplicationGroup;
 import com.study.hub.client.appregistry.AppRegistryClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -75,6 +76,31 @@ class PartnerApplicationServiceTest {
                 .isEqualTo("Техникалық жұмыстар сағат 18:00-ге дейін");
         assertThat(result.maintenanceMessages().en())
                 .isEqualTo("Maintenance until 18:00");
+    }
+
+    @Test
+    void returnsGroupWithoutInternalFinancialConfiguration() {
+        var service = new PartnerApplicationService(appRegistryClient, mapper);
+        when(appRegistryClient.getApplicationGroup("insurance", 0, 20))
+                .thenReturn(new AppRegistryApplicationGroup(
+                        "insurance",
+                        "Страхование",
+                        1,
+                        List.of(configuration(ApplicationStatus.ACTIVE, null)),
+                        0,
+                        20,
+                        1,
+                        1
+                ));
+
+        PartnerApplicationGroupResponse result =
+                service.getApplicationGroup("insurance", 0, 20);
+
+        assertThat(result.groupId()).isEqualTo("insurance");
+        assertThat(result.applications()).hasSize(1);
+        assertThat(result.applications().getFirst().appId())
+                .isEqualTo("insurance-app");
+        assertThat(result.totalElements()).isEqualTo(1);
     }
 
     private AppRegistryApplicationConfiguration configuration(

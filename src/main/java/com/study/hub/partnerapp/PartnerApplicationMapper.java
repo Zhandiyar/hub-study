@@ -1,6 +1,7 @@
 package com.study.hub.partnerapp;
 
 import com.study.hub.client.appregistry.AppRegistryApplicationConfiguration;
+import com.study.hub.client.appregistry.AppRegistryApplicationGroup;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
 
@@ -8,4 +9,6 @@ import org.mapstruct.ReportingPolicy;
 public interface PartnerApplicationMapper {
 
     PartnerApplicationResponse toResponse(AppRegistryApplicationConfiguration source);
+
+    PartnerApplicationGroupResponse toResponse(AppRegistryApplicationGroup source);
 }

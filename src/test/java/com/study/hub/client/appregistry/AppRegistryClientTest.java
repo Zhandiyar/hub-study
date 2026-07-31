@@ -1,7 +1,8 @@
 package com.study.hub.client.appregistry;
 
-import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.AppRegistryUnavailableException;
+import com.study.hub.exception.ApplicationGroupNotFoundException;
+import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.partnerapp.ApplicationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -189,6 +190,56 @@ class AppRegistryClientTest {
 
         assertThatThrownBy(() -> client.getApplicationConfiguration("insurance-app"))
                 .isInstanceOf(AppRegistryUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
+    void returnsApplicationGroup() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/groups/insurance/applications?page=0&size=20"
+                ))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "groupId": "insurance",
+                          "displayName": "Страхование",
+                          "version": 1,
+                          "applications": [
+                            {
+                              "appId": "insurance-app",
+                              "groupId": "insurance",
+                              "status": "ACTIVE",
+                              "version": 3,
+                              "sessionMode": "TOKEN"
+                            }
+                          ],
+                          "page": 0,
+                          "size": 20,
+                          "totalElements": 1,
+                          "totalPages": 1
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        AppRegistryApplicationGroup result =
+                client.getApplicationGroup("insurance", 0, 20);
+
+        assertThat(result.groupId()).isEqualTo("insurance");
+        assertThat(result.applications()).hasSize(1);
+        assertThat(result.applications().getFirst().status())
+                .isEqualTo(ApplicationStatus.ACTIVE);
+        assertThat(result.totalElements()).isEqualTo(1);
+        server.verify();
+    }
+
+    @Test
+    void mapsMissingGroupToNotFound() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/groups/missing/applications?page=0&size=20"
+                ))
+                .andRespond(withResourceNotFound());
+
+        assertThatThrownBy(() -> client.getApplicationGroup("missing", 0, 20))
+                .isInstanceOf(ApplicationGroupNotFoundException.class);
         server.verify();
     }
 }
