@@ -1,8 +1,11 @@
 package com.study.hub.web;
 
 import com.study.hub.exception.AppRegistryUnavailableException;
-import com.study.hub.exception.ApplicationGroupNotFoundException;
+import com.study.hub.exception.ApplicationUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
+import com.study.hub.exception.ContractNotFoundException;
+import com.study.hub.exception.PartnerApiUnavailableException;
+import com.study.hub.exception.PartnerBusinessException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,27 +51,74 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(ApplicationGroupNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleApplicationGroupNotFound(
+    @ExceptionHandler(ContractNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleContractNotFound(
             HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .cacheControl(CacheControl.noStore())
                 .body(problemDetailFactory.create(
                         HttpStatus.NOT_FOUND,
-                        "Application group not found",
-                        "Partner application group was not found",
-                        ProblemType.APPLICATION_GROUP_NOT_FOUND,
+                        "Contract not found",
+                        "Contract was not found",
+                        ProblemType.CONTRACT_NOT_FOUND,
                         request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(ApplicationUnavailableException.class)
+    public ResponseEntity<ProblemDetail> handleApplicationUnavailable(
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .cacheControl(CacheControl.noStore())
+                .body(problemDetailFactory.create(
+                        HttpStatus.CONFLICT,
+                        "Application unavailable",
+                        "Partner application is not available for this operation",
+                        ProblemType.APPLICATION_UNAVAILABLE,
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(PartnerApiUnavailableException.class)
+    public ResponseEntity<ProblemDetail> handlePartnerApiUnavailable(
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .cacheControl(CacheControl.noStore())
+                .body(problemDetailFactory.create(
+                        HttpStatus.BAD_GATEWAY,
+                        "Partner service unavailable",
+                        "Partner service returned an invalid response or is temporarily unavailable",
+                        ProblemType.PARTNER_API_UNAVAILABLE,
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(PartnerBusinessException.class)
+    public ResponseEntity<ProblemDetail> handlePartnerBusinessError(
+            PartnerBusinessException exception,
+            HttpServletRequest request
+    ) {
+        log.warn("Partner business error: errorCode={}", exception.errorCode());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .cacheControl(CacheControl.noStore())
+                .body(problemDetailFactory.create(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Partner business error",
+                        exception.getMessage(),
+                        ProblemType.PARTNER_BUSINESS_ERROR,
+                        request.getRequestURI(),
+                        exception.errors(),
+                        exception.errorCode()
                 ));
     }
 
     @ExceptionHandler(AppRegistryUnavailableException.class)
     public ResponseEntity<ProblemDetail> handleAppRegistryUnavailable(
-            AppRegistryUnavailableException exception,
             HttpServletRequest request
     ) {
-        log.error("App-registry is unavailable", exception);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .cacheControl(CacheControl.noStore())
                 .body(problemDetailFactory.create(
@@ -180,4 +230,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private String fieldErrorMessage(FieldError error) {
         return error.getDefaultMessage() == null ? "invalid" : error.getDefaultMessage();
     }
+
 }

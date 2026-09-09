@@ -1,12 +1,11 @@
 package com.study.hub.client.appregistry;
 
+import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
+import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
-import com.study.hub.exception.ApplicationGroupNotFoundException;
 import com.study.hub.exception.ApplicationNotFoundException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -15,65 +14,71 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.function.Supplier;
 
-import static org.springframework.security.oauth2.client.web.client.RequestAttributeClientRegistrationIdResolver.clientRegistrationId;
-import static org.springframework.security.oauth2.client.web.client.RequestAttributePrincipalResolver.principal;
-
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AppRegistryClient {
 
-    private static final String CLIENT_REGISTRATION_ID = "app-registry";
-    private static final String APPLICATION_PRINCIPAL = "hub";
-
-    @Qualifier("appRegistryRestClient")
     private final RestClient restClient;
 
-    public AppRegistryApplicationConfiguration getApplicationConfiguration(String appId) {
-        AppRegistryApplicationConfiguration configuration = execute(
+    public AppRegistryClient(@Qualifier("appRegistryRestClient") RestClient restClient) {
+        this.restClient = restClient;
+    }
+
+    public HubApplicationConfigurationResponse getApplicationConfiguration(String appId) {
+        HubApplicationConfigurationResponse configuration = execute(
+                "get-application-configuration",
+                appId,
                 () -> restClient.get()
                         .uri("/internal/api/v1/applications/{appId}/configuration", appId)
-                        .attributes(clientRegistrationId(CLIENT_REGISTRATION_ID))
-                        .attributes(principal(APPLICATION_PRINCIPAL))
                         .retrieve()
-                        .body(AppRegistryApplicationConfiguration.class),
+                        .body(HubApplicationConfigurationResponse.class),
                 ApplicationNotFoundException::new
         );
 
         if (configuration == null || configuration.status() == null) {
-            log.warn("App-registry returned an empty or incomplete application response");
+            log.warn(
+                    "App-registry returned an empty or incomplete application response: appId={}",
+                    appId
+            );
+            throw new AppRegistryUnavailableException();
+        }
+        if (!appId.equals(configuration.appId())) {
+            log.warn(
+                    "App-registry returned configuration for another application: "
+                            + "requestedAppId={} actualAppId={}",
+                    appId,
+                    configuration.appId()
+            );
             throw new AppRegistryUnavailableException();
         }
         return configuration;
     }
 
-    public AppRegistryApplicationGroup getApplicationGroup(
-            String groupId,
-            int page,
-            int size
-    ) {
-        AppRegistryApplicationGroup group = execute(
+    public CatalogGroupResponse getCatalog() {
+        CatalogGroupResponse catalog = execute(
+                "get-catalog",
+                "ecosystem",
                 () -> restClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .path("/internal/api/v1/groups/{groupId}/applications")
-                                .queryParam("page", page)
-                                .queryParam("size", size)
-                                .build(groupId))
-                        .attributes(clientRegistrationId(CLIENT_REGISTRATION_ID))
-                        .attributes(principal(APPLICATION_PRINCIPAL))
+                        .uri("/internal/api/v1/catalog")
                         .retrieve()
-                        .body(AppRegistryApplicationGroup.class),
-                ApplicationGroupNotFoundException::new
+                        .body(CatalogGroupResponse.class),
+                AppRegistryUnavailableException::new
         );
 
-        if (group == null || group.applications() == null) {
-            log.warn("App-registry returned an empty or incomplete group response");
+        if (catalog == null
+                || catalog.id() == null
+                || catalog.layout() == null
+                || catalog.title() == null
+                || catalog.items() == null) {
+            log.warn("App-registry returned an empty or incomplete catalog response");
             throw new AppRegistryUnavailableException();
         }
-        return group;
+        return catalog;
     }
 
     private <T> T execute(
+            String operation,
+            String resourceId,
             Supplier<T> request,
             Supplier<? extends RuntimeException> notFoundException
     ) {
@@ -83,17 +88,18 @@ public class AppRegistryClient {
             throw notFoundException.get();
         } catch (RestClientResponseException exception) {
             log.warn(
-                    "App-registry returned an unexpected status: status={}",
+                    "App-registry returned an unexpected status: operation={} resourceId={} status={}",
+                    operation,
+                    resourceId,
                     exception.getStatusCode().value()
             );
-            throw new AppRegistryUnavailableException(exception);
+            throw new AppRegistryUnavailableException();
         } catch (RestClientException exception) {
-            log.warn("Could not call app-registry: {}", exception.getMessage());
-            throw new AppRegistryUnavailableException(exception);
-        } catch (OAuth2AuthorizationException exception) {
             log.warn(
-                    "Could not obtain app-registry service token: error={}",
-                    exception.getError().getErrorCode()
+                    "Could not call app-registry: operation={} resourceId={} errorType={}",
+                    operation,
+                    resourceId,
+                    exception.getClass().getSimpleName()
             );
             throw new AppRegistryUnavailableException(exception);
         }

@@ -1,5 +1,6 @@
 package com.study.hub.config;
 
+import com.study.hub.openapi.OpenApiConstants;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -13,8 +14,6 @@ import org.springframework.context.annotation.Profile;
 @Profile("!prod")
 public class OpenApiConfig {
 
-    private static final String BEARER_JWT = "bearer-jwt";
-
     @Bean
     public OpenAPI hubOpenApi() {
         return new OpenAPI()
@@ -23,10 +22,10 @@ public class OpenApiConfig {
                         .description("Единая точка доступа к партнёрским приложениям")
                         .version("v1"))
                 .components(new Components()
-                        .addSecuritySchemes(BEARER_JWT, new SecurityScheme()
+                        .addSecuritySchemes(OpenApiConstants.BEARER_JWT, new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")))
-                .addSecurityItem(new SecurityRequirement().addList(BEARER_JWT));
+                .addSecurityItem(new SecurityRequirement().addList(OpenApiConstants.BEARER_JWT));
     }
 }

@@ -24,7 +24,7 @@ public class ProblemDetailFactory {
             ProblemType type,
             String requestUri
     ) {
-        return create(status, title, detail, type, requestUri, null);
+        return create(status, title, detail, type, requestUri, null, null);
     }
 
     public ProblemDetail create(
@@ -35,6 +35,18 @@ public class ProblemDetailFactory {
             String requestUri,
             Map<String, List<String>> errors
     ) {
+        return create(status, title, detail, type, requestUri, errors, null);
+    }
+
+    public ProblemDetail create(
+            HttpStatus status,
+            String title,
+            String detail,
+            ProblemType type,
+            String requestUri,
+            Map<String, List<String>> errors,
+            String errorCode
+    ) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(title);
         problem.setType(properties.baseUri().resolve(type.id()));
@@ -43,6 +55,9 @@ public class ProblemDetailFactory {
 
         if (errors != null && !errors.isEmpty()) {
             problem.setProperty("errors", errors);
+        }
+        if (errorCode != null && !errorCode.isBlank()) {
+            problem.setProperty("errorCode", errorCode);
         }
 
         putMdcValue(problem, "traceId", TraceContext.TRACE_ID_MDC_KEY);

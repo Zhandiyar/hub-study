@@ -9,32 +9,12 @@ spring:
   http:
     client:
       factory: http-components
-      connect-timeout: ${APP_REGISTRY_CONNECT_TIMEOUT:2s}
-      read-timeout: ${APP_REGISTRY_READ_TIMEOUT:3s}
+      connect-timeout: ${OUTBOUND_HTTP_CONNECT_TIMEOUT:2s}
+      read-timeout: ${OUTBOUND_HTTP_READ_TIMEOUT:3s}
       redirects: dont-follow
   mvc:
     problemdetails:
       enabled: true
-  security:
-    oauth2:
-      client:
-        registration:
-          app-registry:
-            provider: keycloak
-            client-id: ${HUB_CLIENT_ID}
-            client-secret: ${HUB_CLIENT_SECRET}
-            client-authentication-method: client_secret_basic
-            authorization-grant-type: client_credentials
-        provider:
-          keycloak:
-            token-uri: ${KEYCLOAK_TOKEN_URI}
-      resourceserver:
-        jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
-          audiences:
-            - ${KEYCLOAK_AUDIENCE}
-
 server:
   shutdown: graceful
 
@@ -52,9 +32,6 @@ app:
   clients:
     app-registry:
       base-url: ${APP_REGISTRY_BASE_URL}
-    keycloak:
-      connect-timeout: ${KEYCLOAK_CONNECT_TIMEOUT:2s}
-      read-timeout: ${KEYCLOAK_READ_TIMEOUT:3s}
   problems:
     base-uri: ${APP_PROBLEMS_BASE_URI}
 
@@ -69,6 +46,10 @@ logbook:
       - path: /swagger-ui/**
       - path: /v3/api-docs/**
       - path: /favicon.ico
+      - path: /hub/api/v1/applications/*/contracts/**
+      - path: /hub/api/v1/applications/*/launch
+      - path: /internal/api/v1/contracts/**
+      - path: /internal/api/v1/session/**
   obfuscate:
     replacement: "***"
     headers:
@@ -84,6 +65,7 @@ logbook:
       - secret
       - code
       - token
+      - value
       - accessToken
       - refreshToken
   write:

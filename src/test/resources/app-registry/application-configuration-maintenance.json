@@ -1,0 +1,34 @@
+{
+  "appId": "insurance-app",
+  "groupId": "insurance",
+  "status": "MAINTENANCE",
+  "maintenanceMessages": {
+    "ru": "Технические работы",
+    "kk": "Техникалық жұмыстар",
+    "en": "Maintenance"
+  },
+  "version": 4,
+  "integrationType": "PARTNER_WEBVIEW",
+  "sessionMode": "TOKEN",
+  "interfaceConfiguration": {
+    "entryUrl": "https://partner.example/app",
+    "title": {
+      "ru": "Страхование",
+      "kk": "Сақтандыру",
+      "en": "Insurance"
+    },
+    "iconUrl": null,
+    "displayOrder": 10
+  },
+  "nativeSecurityConfiguration": {
+    "allowedDomains": ["partner.example"],
+    "contentSecurityPolicy": "default-src 'self'",
+    "allowedBridgeMethods": ["close"]
+  },
+  "financialConfiguration": {
+    "merchantId": "merchant-123",
+    "serviceId": "service-456",
+    "paymentWebhookUrl": "https://partner.example/webhook",
+    "credentialId": "partner-app-credential"
+  }
+}
