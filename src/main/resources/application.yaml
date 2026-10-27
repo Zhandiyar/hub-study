@@ -22,11 +22,9 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
-  endpoint:
-    health:
-      probes:
-        enabled: true
+        include:
+          - health
+          - prometheus
 
 app:
   clients:
@@ -36,8 +34,6 @@ app:
     base-uri: ${APP_PROBLEMS_BASE_URI}
 
 logbook:
-  format:
-    style: json
   strategy: body-only-if-status-at-least
   minimum-status: 400
   predicate:
@@ -46,10 +42,8 @@ logbook:
       - path: /swagger-ui/**
       - path: /v3/api-docs/**
       - path: /favicon.ico
-      - path: /hub/api/v1/applications/*/contracts/**
-      - path: /hub/api/v1/applications/*/launch
+      - path: /hub/api/v1/services/*/contracts/**
       - path: /internal/api/v1/contracts/**
-      - path: /internal/api/v1/session/**
   obfuscate:
     replacement: "***"
     headers:
@@ -61,15 +55,15 @@ logbook:
       - token
     json-body-fields:
       - credentialId
-      - credential_id
       - secret
-      - code
       - token
       - value
       - accessToken
       - refreshToken
   write:
+    status-code-based: true
     max-body-size: 10000
+    validate-json-body: true
 
 springdoc:
   swagger-ui:
@@ -81,4 +75,4 @@ springdoc:
 logging:
   level:
     com.study.hub: INFO
-    org.zalando.logbook: TRACE
+    org.zalando.logbook.Logbook: TRACE

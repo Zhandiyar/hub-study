@@ -19,7 +19,7 @@ repositories {
 }
 
 ext {
-    logbookVersion = '3.12.3'
+    logbookVersion = '4.1.0'
     springdocVersion = '2.8.17'
 }
 
@@ -31,6 +31,8 @@ dependencies {
     implementation 'org.apache.httpcomponents.client5:httpclient5'
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
     implementation "org.zalando:logbook-spring-boot-starter:${logbookVersion}"
+
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

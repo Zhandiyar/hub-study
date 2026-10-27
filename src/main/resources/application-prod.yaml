@@ -2,6 +2,8 @@ spring:
   config:
     activate:
       on-profile: prod
+  main:
+    banner-mode: off
 
 springdoc:
   api-docs:
@@ -17,11 +19,13 @@ management:
 logging:
   structured:
     format:
-      console: logstash
-    json:
-      add:
-        service: ${spring.application.name}
+      console: ecs
+    ecs:
+      service:
+        name: ${spring.application.name}
+        version: ${APP_VERSION:0.1.0-SNAPSHOT}
+        environment: ${APP_ENVIRONMENT:prod}
   level:
     root: INFO
     com.study.hub: INFO
-    org.zalando.logbook: TRACE
+    org.zalando.logbook.Logbook: TRACE

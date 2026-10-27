@@ -2,6 +2,7 @@ package com.study.hub.contract;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.study.hub.exception.ContractNotFoundException;
+import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.ApplicationUnavailableException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
@@ -40,11 +41,11 @@ class ContractApiTest {
                 .put("policyNumber", "contract-123")
                 .put("state", "ACTIVE")
                 .put("insuredObject", "vehicle");
-        when(contractService.getContract("insurance-app", "contract-123"))
+        when(contractService.getContract("service-456", "contract-123"))
                 .thenReturn(response);
 
         mockMvc.perform(get(
-                        "/hub/api/v1/applications/insurance-app/contracts/contract-123"
+                        "/hub/api/v1/services/service-456/contracts/contract-123"
                 ))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
@@ -52,28 +53,40 @@ class ContractApiTest {
                 .andExpect(jsonPath("$.state").value("ACTIVE"))
                 .andExpect(jsonPath("$.insuredObject").value("vehicle"));
 
-        verify(contractService).getContract("insurance-app", "contract-123");
+        verify(contractService).getContract("service-456", "contract-123");
     }
 
     @Test
     void returnsMissingContractAsNotFound() throws Exception {
-        when(contractService.getContract("insurance-app", "missing"))
+        when(contractService.getContract("service-456", "missing"))
                 .thenThrow(new ContractNotFoundException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/applications/insurance-app/contracts/missing"
+                        "/hub/api/v1/services/service-456/contracts/missing"
                 ))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("CONTRACT_NOT_FOUND"));
     }
 
     @Test
+    void returnsApplicationNotFoundForUnknownServiceId() throws Exception {
+        when(contractService.getContract("unknown-service", "contract-123"))
+                .thenThrow(new ApplicationNotFoundException());
+
+        mockMvc.perform(get(
+                        "/hub/api/v1/services/unknown-service/contracts/contract-123"
+                ))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("APPLICATION_NOT_FOUND"));
+    }
+
+    @Test
     void returnsConflictWhenApplicationIsUnavailable() throws Exception {
-        when(contractService.getContract("insurance-app", "contract-123"))
+        when(contractService.getContract("service-456", "contract-123"))
                 .thenThrow(new ApplicationUnavailableException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/applications/insurance-app/contracts/contract-123"
+                        "/hub/api/v1/services/service-456/contracts/contract-123"
                 ))
                 .andExpect(status().isConflict())
                 .andExpect(header().string("Cache-Control", "no-store"))
@@ -82,11 +95,11 @@ class ContractApiTest {
 
     @Test
     void hidesPartnerFailureBehindBadGateway() throws Exception {
-        when(contractService.getContract("insurance-app", "contract-123"))
+        when(contractService.getContract("service-456", "contract-123"))
                 .thenThrow(new PartnerApiUnavailableException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/applications/insurance-app/contracts/contract-123"
+                        "/hub/api/v1/services/service-456/contracts/contract-123"
                 ))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("PARTNER_API_UNAVAILABLE"))
@@ -97,7 +110,7 @@ class ContractApiTest {
 
     @Test
     void returnsPartnerBusinessErrorAsUnprocessableEntity() throws Exception {
-        when(contractService.getContract("insurance-app", "contract-123"))
+        when(contractService.getContract("service-456", "contract-123"))
                 .thenThrow(new PartnerBusinessException(
                         "Contract amount is invalid",
                         "CONTRACT_DIFFERENT_AMOUNT",
@@ -105,7 +118,7 @@ class ContractApiTest {
                 ));
 
         mockMvc.perform(get(
-                        "/hub/api/v1/applications/insurance-app/contracts/contract-123"
+                        "/hub/api/v1/services/service-456/contracts/contract-123"
                 ))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(header().string("Cache-Control", "no-store"))

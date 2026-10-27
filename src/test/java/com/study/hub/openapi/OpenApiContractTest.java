@@ -87,7 +87,7 @@ class OpenApiContractTest {
         assertResponses(
                 operation(
                         openApi,
-                        "/hub/api/v1/applications/{appId}/contracts/{contractNumber}"
+                        "/hub/api/v1/services/{serviceId}/contracts/{contractNumber}"
                 ),
                 "200", "400", "401", "404", "409", "422", "500", "502", "503"
         );

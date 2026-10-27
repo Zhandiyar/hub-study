@@ -5,6 +5,7 @@ import com.study.hub.client.OutboundTraceHeadersInterceptor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
+import org.zalando.logbook.spring.LogbookClientHttpRequestInterceptor;
 
 @Configuration(proxyBeanMethods = false)
 class PartnerApiClientConfig {
@@ -13,11 +14,13 @@ class PartnerApiClientConfig {
     RestClient partnerApiRestClient(
             RestClient.Builder builder,
             OutboundTraceHeadersInterceptor traceHeadersInterceptor,
-            AuthorizationHeaderRelayInterceptor authorizationHeaderRelayInterceptor
+            AuthorizationHeaderRelayInterceptor authorizationHeaderRelayInterceptor,
+            LogbookClientHttpRequestInterceptor logbookInterceptor
     ) {
         return builder
                 .requestInterceptor(traceHeadersInterceptor)
                 .requestInterceptor(authorizationHeaderRelayInterceptor)
+                .requestInterceptor(logbookInterceptor)
                 .build();
     }
 }

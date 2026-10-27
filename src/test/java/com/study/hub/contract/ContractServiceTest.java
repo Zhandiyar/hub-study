@@ -3,6 +3,8 @@ package com.study.hub.contract;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.study.hub.application.ApplicationAvailabilityService;
 import com.study.hub.client.partner.PartnerApiClient;
+import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
+import com.study.hub.client.appregistry.model.ApplicationStatus;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.ApplicationUnavailableException;
 import org.junit.jupiter.api.Test;
@@ -30,23 +32,30 @@ class ContractServiceTest {
         var expected = JsonNodeFactory.instance.objectNode()
                 .put("policyNumber", "contract-123")
                 .put("state", "ACTIVE");
+        when(applicationAvailabilityService.getActiveRoutingByServiceId("service-456"))
+                .thenReturn(new ApplicationRoutingResponse(
+                        "insurance",
+                        "insurance-app",
+                        ApplicationStatus.ACTIVE
+                ));
         when(partnerApiClient.getContract("insurance-app", "contract-123"))
                 .thenReturn(expected);
         var service = new ContractService(applicationAvailabilityService, partnerApiClient);
 
-        var result = service.getContract("insurance-app", "contract-123");
+        var result = service.getContract("service-456", "contract-123");
 
         assertThat(result).isSameAs(expected);
-        verify(applicationAvailabilityService).getActiveConfiguration("insurance-app");
+        verify(applicationAvailabilityService)
+                .getActiveRoutingByServiceId("service-456");
     }
 
     @Test
     void doesNotCallPartnerForUnknownApplication() {
-        when(applicationAvailabilityService.getActiveConfiguration("unknown-app"))
+        when(applicationAvailabilityService.getActiveRoutingByServiceId("unknown-service"))
                 .thenThrow(new ApplicationNotFoundException());
         var service = new ContractService(applicationAvailabilityService, partnerApiClient);
 
-        assertThatThrownBy(() -> service.getContract("unknown-app", "contract-123"))
+        assertThatThrownBy(() -> service.getContract("unknown-service", "contract-123"))
                 .isInstanceOf(ApplicationNotFoundException.class);
 
         verifyNoInteractions(partnerApiClient);
@@ -54,11 +63,11 @@ class ContractServiceTest {
 
     @Test
     void doesNotCallPartnerWhenApplicationIsUnavailable() {
-        when(applicationAvailabilityService.getActiveConfiguration("insurance-app"))
+        when(applicationAvailabilityService.getActiveRoutingByServiceId("service-456"))
                 .thenThrow(new ApplicationUnavailableException());
         var service = new ContractService(applicationAvailabilityService, partnerApiClient);
 
-        assertThatThrownBy(() -> service.getContract("insurance-app", "contract-123"))
+        assertThatThrownBy(() -> service.getContract("service-456", "contract-123"))
                 .isInstanceOf(ApplicationUnavailableException.class);
 
         verifyNoInteractions(partnerApiClient);

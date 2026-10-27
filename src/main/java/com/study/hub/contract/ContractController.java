@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/hub/api/v1/applications/{appId}/contracts")
+@RequestMapping("/hub/api/v1/services/{serviceId}/contracts")
 @RequiredArgsConstructor
 @Tag(
         name = "Договоры",
@@ -53,9 +54,11 @@ public class ContractController {
             )
     )
     public ResponseEntity<JsonNode> getContract(
-            @Parameter(description = "Идентификатор партнёрского приложения")
+            @Parameter(description = "Идентификатор платёжного сервиса")
             @PathVariable
-            String appId,
+            @NotBlank
+            @Size(max = 128)
+            String serviceId,
             @Parameter(description = "Номер договора")
             @PathVariable
             @Size(max = 128)
@@ -63,6 +66,6 @@ public class ContractController {
     ) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(contractService.getContract(appId, contractNumber));
+                .body(contractService.getContract(serviceId, contractNumber));
     }
 }

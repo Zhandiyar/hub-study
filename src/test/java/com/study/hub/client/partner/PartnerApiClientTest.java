@@ -96,6 +96,23 @@ class PartnerApiClientTest {
     }
 
     @Test
+    void mapsPartnerUnauthorizedToUnavailable() {
+        server.expect(requestTo(
+                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                ))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+
+        assertThatThrownBy(() -> client.getContract(
+                "insurance-app",
+                "contract-123"
+        ))
+                .isInstanceOf(PartnerApiUnavailableException.class)
+                .hasMessage("Partner service is temporarily unavailable")
+                .hasNoCause();
+        server.verify();
+    }
+
+    @Test
     void mapsPartnerBusinessError() {
         server.expect(requestTo(
                         "http://insurance-app/internal/api/v1/contracts/contract-123"

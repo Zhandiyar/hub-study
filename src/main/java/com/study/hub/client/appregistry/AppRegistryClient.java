@@ -2,6 +2,7 @@ package com.study.hub.client.appregistry;
 
 import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
+import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,35 @@ public class AppRegistryClient {
             throw new AppRegistryUnavailableException();
         }
         return configuration;
+    }
+
+    public ApplicationRoutingResponse getRoutingByServiceId(String serviceId) {
+        ApplicationRoutingResponse routing = execute(
+                "get-application-routing",
+                serviceId,
+                () -> restClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/internal/api/v1/applications/by-service-id")
+                                .queryParam("serviceId", serviceId)
+                                .build())
+                        .retrieve()
+                        .body(ApplicationRoutingResponse.class),
+                ApplicationNotFoundException::new
+        );
+
+        if (routing == null
+                || routing.appId() == null
+                || routing.appId().isBlank()
+                || routing.groupId() == null
+                || routing.groupId().isBlank()
+                || routing.status() == null) {
+            log.warn(
+                    "App-registry returned an empty or incomplete routing response: serviceId={}",
+                    serviceId
+            );
+            throw new AppRegistryUnavailableException();
+        }
+        return routing;
     }
 
     public CatalogGroupResponse getCatalog() {

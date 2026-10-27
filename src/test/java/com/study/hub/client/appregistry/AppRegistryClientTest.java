@@ -1,6 +1,7 @@
 package com.study.hub.client.appregistry;
 
 import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
+import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.client.appregistry.dto.CatalogApplicationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
@@ -11,6 +12,7 @@ import com.study.hub.client.appregistry.model.SessionMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -25,6 +27,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withResourceNotFound;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class AppRegistryClientTest {
@@ -125,6 +128,61 @@ class AppRegistryClientTest {
     }
 
     @Test
+    void returnsApplicationRoutingByServiceId() {
+        server.expect(once(), requestTo(
+                        "http://app-registry/internal/api/v1/applications/by-service-id"
+                                + "?serviceId=service-456"
+                ))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "groupId": "insurance",
+                          "appId": "insurance-app",
+                          "status": "ACTIVE"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        ApplicationRoutingResponse result =
+                client.getRoutingByServiceId("service-456");
+
+        assertThat(result.groupId()).isEqualTo("insurance");
+        assertThat(result.appId()).isEqualTo("insurance-app");
+        assertThat(result.status()).isEqualTo(ApplicationStatus.ACTIVE);
+        server.verify();
+    }
+
+    @Test
+    void mapsUnknownServiceIdToApplicationNotFound() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/by-service-id"
+                                + "?serviceId=unknown-service"
+                ))
+                .andRespond(withResourceNotFound());
+
+        assertThatThrownBy(() -> client.getRoutingByServiceId("unknown-service"))
+                .isInstanceOf(ApplicationNotFoundException.class);
+        server.verify();
+    }
+
+    @Test
+    void rejectsIncompleteApplicationRouting() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/by-service-id"
+                                + "?serviceId=service-456"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "groupId": "insurance",
+                          "appId": "insurance-app"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.getRoutingByServiceId("service-456"))
+                .isInstanceOf(AppRegistryUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
     void mapsServerErrorWithoutExposingResponseBody() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/insurance-app/configuration"
@@ -132,6 +190,21 @@ class AppRegistryClientTest {
                 .andRespond(withServerError());
 
         assertThatThrownBy(() -> client.getApplicationConfiguration("insurance-app"))
+                .isInstanceOf(AppRegistryUnavailableException.class)
+                .hasMessage("App-registry is temporarily unavailable")
+                .hasNoCause();
+        server.verify();
+    }
+
+    @Test
+    void mapsUnauthorizedResponseToDependencyUnavailable() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/by-service-id"
+                                + "?serviceId=service-456"
+                ))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+
+        assertThatThrownBy(() -> client.getRoutingByServiceId("service-456"))
                 .isInstanceOf(AppRegistryUnavailableException.class)
                 .hasMessage("App-registry is temporarily unavailable")
                 .hasNoCause();

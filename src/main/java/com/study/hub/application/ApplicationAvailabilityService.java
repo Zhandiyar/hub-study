@@ -2,6 +2,7 @@ package com.study.hub.application;
 
 import com.study.hub.client.appregistry.AppRegistryClient;
 import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
+import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.client.appregistry.model.ApplicationStatus;
 import com.study.hub.exception.ApplicationUnavailableException;
 import lombok.RequiredArgsConstructor;
@@ -28,5 +29,21 @@ public class ApplicationAvailabilityService {
             throw new ApplicationUnavailableException();
         }
         return configuration;
+    }
+
+    public ApplicationRoutingResponse getActiveRoutingByServiceId(String serviceId) {
+        ApplicationRoutingResponse routing = appRegistryClient.getRoutingByServiceId(serviceId);
+
+        if (routing.status() != ApplicationStatus.ACTIVE) {
+            log.info(
+                    "Partner operation rejected due to application status: "
+                            + "serviceId={} appId={} status={}",
+                    serviceId,
+                    routing.appId(),
+                    routing.status()
+            );
+            throw new ApplicationUnavailableException();
+        }
+        return routing;
     }
 }

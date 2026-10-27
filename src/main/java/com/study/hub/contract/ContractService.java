@@ -13,8 +13,9 @@ public class ContractService {
     private final ApplicationAvailabilityService applicationAvailabilityService;
     private final PartnerApiClient partnerApiClient;
 
-    public JsonNode getContract(String appId, String contractNumber) {
-        applicationAvailabilityService.getActiveConfiguration(appId);
-        return partnerApiClient.getContract(appId, contractNumber);
+    public JsonNode getContract(String serviceId, String contractNumber) {
+        var routing = applicationAvailabilityService
+                .getActiveRoutingByServiceId(serviceId);
+        return partnerApiClient.getContract(routing.appId(), contractNumber);
     }
 }
