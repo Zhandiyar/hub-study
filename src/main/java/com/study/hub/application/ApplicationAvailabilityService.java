@@ -31,7 +31,7 @@ public class ApplicationAvailabilityService {
         return configuration;
     }
 
-    public ApplicationRoutingResponse getActiveRoutingByServiceId(String serviceId) {
+    public ApplicationRoutingResponse getActiveRoutingByServiceId(Long serviceId) {
         ApplicationRoutingResponse routing = appRegistryClient.getRoutingByServiceId(serviceId);
 
         if (routing.status() != ApplicationStatus.ACTIVE) {

@@ -84,13 +84,20 @@ class OpenApiContractTest {
                 .path("properties");
         assertThat(catalogApplicationSchema.has("id")).isTrue();
         assertThat(catalogApplicationSchema.has("appId")).isFalse();
+        JsonNode contractOperation = operation(
+                openApi,
+                "/hub/api/v1/services/{serviceId}/contracts/{contractNumber}"
+        );
         assertResponses(
-                operation(
-                        openApi,
-                        "/hub/api/v1/services/{serviceId}/contracts/{contractNumber}"
-                ),
+                contractOperation,
                 "200", "400", "401", "404", "409", "422", "500", "502", "503"
         );
+        assertResponseSchema(contractOperation, "ContractResponse");
+        JsonNode contractProperties = openApi.path("components")
+                .path("schemas")
+                .path("ContractResponse")
+                .path("properties");
+        assertThat(contractProperties.has("paymentDetails")).isTrue();
         JsonNode launchOperation = operation(
                 openApi,
                 "/hub/api/v1/applications/{appId}/launch",

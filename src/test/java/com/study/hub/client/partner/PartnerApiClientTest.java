@@ -1,6 +1,5 @@
 package com.study.hub.client.partner;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.study.hub.exception.ContractNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
@@ -37,7 +36,7 @@ class PartnerApiClientTest {
     }
 
     @Test
-    void returnsPartnerSpecificContractJson() {
+    void returnsNormalizedPartnerContract() {
         server.expect(requestTo(
                         "http://insurance-app/internal/api/v1/contracts/contract-123"
                 ))
@@ -45,18 +44,25 @@ class PartnerApiClientTest {
                 .andRespond(withSuccess("""
                         {
                           "contractNumber": "contract-123",
-                          "state": "ACTIVE",
-                          "productName": "КАСКО",
-                          "policyType": "CASCO"
+                          "status": "ACTIVE",
+                          "amount": 15000.00,
+                          "currency": "KZT",
+                          "paymentFields": {
+                            "type": "flight"
+                          }
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        JsonNode result = client.getContract("insurance-app", "contract-123");
+        PartnerContractResponse result = client.getContract(
+                "insurance-app",
+                "contract-123"
+        );
 
-        assertThat(result.path("contractNumber").asText()).isEqualTo("contract-123");
-        assertThat(result.path("state").asText()).isEqualTo("ACTIVE");
-        assertThat(result.path("productName").asText()).isEqualTo("КАСКО");
-        assertThat(result.path("policyType").asText()).isEqualTo("CASCO");
+        assertThat(result.contractNumber()).isEqualTo("contract-123");
+        assertThat(result.status()).isEqualTo("ACTIVE");
+        assertThat(result.amount()).isEqualByComparingTo("15000.00");
+        assertThat(result.currency()).isEqualTo("KZT");
+        assertThat(result.paymentFields()).containsEntry("type", "flight");
         server.verify();
     }
 
@@ -156,22 +162,38 @@ class PartnerApiClientTest {
     }
 
     @Test
-    void acceptsJsonWithoutCommonContractFields() {
+    void rejectsJsonWithoutRequiredContractFields() {
         server.expect(requestTo(
                         "http://insurance-app/internal/api/v1/contracts/contract-123"
                 ))
                 .andRespond(withSuccess("""
                         {
                           "contractNumber": "contract-123",
-                          "state": "ACTIVE"
+                          "status": "ACTIVE"
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        JsonNode result = client.getContract("insurance-app", "contract-123");
+        assertThatThrownBy(() -> client.getContract("insurance-app", "contract-123"))
+                .isInstanceOf(PartnerApiUnavailableException.class);
+        server.verify();
+    }
 
-        assertThat(result.path("contractNumber").asText()).isEqualTo("contract-123");
-        assertThat(result.path("state").asText()).isEqualTo("ACTIVE");
-        assertThat(result.has("productName")).isFalse();
+    @Test
+    void rejectsContractNumberDifferentFromRequested() {
+        server.expect(requestTo(
+                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "contractNumber": "another-contract",
+                          "status": "ACTIVE",
+                          "amount": 100.00,
+                          "currency": "KZT"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.getContract("insurance-app", "contract-123"))
+                .isInstanceOf(PartnerApiUnavailableException.class);
         server.verify();
     }
 

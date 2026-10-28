@@ -4,6 +4,7 @@ import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.client.appregistry.dto.CatalogApplicationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
+import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.client.appregistry.model.ApplicationStatus;
@@ -75,7 +76,9 @@ class AppRegistryClientTest {
                           },
                           "financialConfiguration": {
                             "merchantId": "merchant-1",
-                            "serviceId": "service-1",
+                            "serviceId": 1,
+                            "contractNumberServiceFieldId": 901,
+                            "notificationFields": [],
                             "paymentWebhookUrl": "https://partner.example/webhook",
                             "credentialId": "partner-app-credential"
                           }
@@ -90,7 +93,7 @@ class AppRegistryClientTest {
         assertThat(result.integrationType()).isEqualTo(IntegrationType.PARTNER_WEBVIEW);
         assertThat(result.sessionMode()).isEqualTo(SessionMode.TOKEN);
         assertThat(result.financialConfiguration().merchantId()).isEqualTo("merchant-1");
-        assertThat(result.financialConfiguration().serviceId()).isEqualTo("service-1");
+        assertThat(result.financialConfiguration().serviceId()).isEqualTo(1L);
         assertThat(result.financialConfiguration().credentialId())
                 .isEqualTo("partner-app-credential");
         server.verify();
@@ -111,7 +114,7 @@ class AppRegistryClientTest {
 
         assertThat(result.maintenanceMessages().ru()).isEqualTo("Технические работы");
         assertThat(result.maintenanceMessages().kk()).isEqualTo("Техникалық жұмыстар");
-        assertThat(result.financialConfiguration().serviceId()).isEqualTo("service-456");
+        assertThat(result.financialConfiguration().serviceId()).isEqualTo(456L);
         server.verify();
     }
 
@@ -131,23 +134,33 @@ class AppRegistryClientTest {
     void returnsApplicationRoutingByServiceId() {
         server.expect(once(), requestTo(
                         "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=service-456"
+                                + "?serviceId=456"
                 ))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         {
+                          "serviceId": 456,
                           "groupId": "insurance",
                           "appId": "insurance-app",
-                          "status": "ACTIVE"
+                          "status": "ACTIVE",
+                          "contractNumberServiceFieldId": 901,
+                          "paymentFieldMappings": [
+                            {"code": "type", "serviceFieldId": 902}
+                          ]
                         }
                         """, MediaType.APPLICATION_JSON));
 
         ApplicationRoutingResponse result =
-                client.getRoutingByServiceId("service-456");
+                client.getRoutingByServiceId(456L);
 
+        assertThat(result.serviceId()).isEqualTo(456L);
         assertThat(result.groupId()).isEqualTo("insurance");
         assertThat(result.appId()).isEqualTo("insurance-app");
         assertThat(result.status()).isEqualTo(ApplicationStatus.ACTIVE);
+        assertThat(result.contractNumberServiceFieldId()).isEqualTo(901L);
+        assertThat(result.paymentFieldMappings()).containsExactly(
+                new PaymentFieldMappingResponse("type", 902L)
+        );
         server.verify();
     }
 
@@ -155,11 +168,11 @@ class AppRegistryClientTest {
     void mapsUnknownServiceIdToApplicationNotFound() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=unknown-service"
+                                + "?serviceId=999"
                 ))
                 .andRespond(withResourceNotFound());
 
-        assertThatThrownBy(() -> client.getRoutingByServiceId("unknown-service"))
+        assertThatThrownBy(() -> client.getRoutingByServiceId(999L))
                 .isInstanceOf(ApplicationNotFoundException.class);
         server.verify();
     }
@@ -168,16 +181,19 @@ class AppRegistryClientTest {
     void rejectsIncompleteApplicationRouting() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=service-456"
+                                + "?serviceId=456"
                 ))
                 .andRespond(withSuccess("""
                         {
+                          "serviceId": 456,
                           "groupId": "insurance",
-                          "appId": "insurance-app"
+                          "appId": "insurance-app",
+                          "contractNumberServiceFieldId": 901,
+                          "paymentFieldMappings": []
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.getRoutingByServiceId("service-456"))
+        assertThatThrownBy(() -> client.getRoutingByServiceId(456L))
                 .isInstanceOf(AppRegistryUnavailableException.class);
         server.verify();
     }
@@ -200,11 +216,11 @@ class AppRegistryClientTest {
     void mapsUnauthorizedResponseToDependencyUnavailable() {
         server.expect(requestTo(
                         "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=service-456"
+                                + "?serviceId=456"
                 ))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
-        assertThatThrownBy(() -> client.getRoutingByServiceId("service-456"))
+        assertThatThrownBy(() -> client.getRoutingByServiceId(456L))
                 .isInstanceOf(AppRegistryUnavailableException.class)
                 .hasMessage("App-registry is temporarily unavailable")
                 .hasNoCause();

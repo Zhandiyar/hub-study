@@ -27,7 +27,9 @@
   },
   "financialConfiguration": {
     "merchantId": "merchant-123",
-    "serviceId": "service-456",
+    "serviceId": 456,
+    "contractNumberServiceFieldId": 901,
+    "notificationFields": [],
     "paymentWebhookUrl": "https://partner.example/webhook",
     "credentialId": "partner-app-credential"
   }

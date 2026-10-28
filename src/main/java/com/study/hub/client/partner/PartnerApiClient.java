@@ -1,6 +1,5 @@
 package com.study.hub.client.partner;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.study.hub.exception.ContractNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
@@ -33,14 +32,14 @@ public class PartnerApiClient {
         this.errorParser = errorParser;
     }
 
-    public JsonNode getContract(String appId, String contractNumber) {
+    public PartnerContractResponse getContract(String appId, String contractNumber) {
         try {
-            JsonNode contract = restClient.get()
+            PartnerContractResponse contract = restClient.get()
                     .uri(CONTRACT_URL, appId, contractNumber)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(PartnerContractResponse.class);
 
-            if (contract == null || !contract.isObject()) {
+            if (isInvalidContract(contract, contractNumber)) {
                 log.warn("Partner service returned an invalid contract response: appId={}", appId);
                 throw new PartnerApiUnavailableException();
             }
@@ -57,6 +56,20 @@ public class PartnerApiClient {
             );
             throw new PartnerApiUnavailableException(exception);
         }
+    }
+
+    private boolean isInvalidContract(
+            PartnerContractResponse contract,
+            String requestedContractNumber
+    ) {
+        return contract == null
+                || contract.contractNumber() == null
+                || !contract.contractNumber().equals(requestedContractNumber)
+                || contract.status() == null
+                || contract.status().isBlank()
+                || contract.amount() == null
+                || contract.currency() == null
+                || contract.currency().isBlank();
     }
 
     public String createSessionToken(String appId) {

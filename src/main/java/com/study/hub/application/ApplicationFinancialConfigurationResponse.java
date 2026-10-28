@@ -8,6 +8,6 @@ public record ApplicationFinancialConfigurationResponse(
         String merchantId,
 
         @Schema(description = "Идентификатор платёжного сервиса")
-        String serviceId
+        Long serviceId
 ) {
 }

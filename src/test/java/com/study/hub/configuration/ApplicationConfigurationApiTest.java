@@ -56,7 +56,7 @@ class ApplicationConfigurationApiTest {
                 .andExpect(jsonPath("$.financialConfiguration.merchantId")
                         .value("merchant-123"))
                 .andExpect(jsonPath("$.financialConfiguration.serviceId")
-                        .value("service-456"))
+                        .value(456))
                 .andExpect(jsonPath("$.financialConfiguration.paymentWebhookUrl")
                         .doesNotExist())
                 .andExpect(jsonPath("$.financialConfiguration.credentialId")
@@ -152,7 +152,9 @@ class ApplicationConfigurationApiTest {
                 ),
                 new FinancialConfigurationResponse(
                         "merchant-123",
-                        "service-456",
+                        456L,
+                        901L,
+                        List.of(),
                         "https://partner.example/webhooks/payment",
                         "insurance-app-credential"
                 )

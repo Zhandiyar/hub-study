@@ -1,6 +1,5 @@
 package com.study.hub.contract;
 
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.study.hub.exception.ContractNotFoundException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.ApplicationUnavailableException;
@@ -14,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -37,32 +37,43 @@ class ContractApiTest {
 
     @Test
     void returnsContractWithoutCaching() throws Exception {
-        var response = JsonNodeFactory.instance.objectNode()
-                .put("policyNumber", "contract-123")
-                .put("state", "ACTIVE")
-                .put("insuredObject", "vehicle");
-        when(contractService.getContract("service-456", "contract-123"))
+        var response = new ContractResponse(
+                "contract-123",
+                "ACTIVE",
+                new BigDecimal("15000.00"),
+                "KZT",
+                List.of(
+                        new PaymentDetailResponse(901L, "contract-123"),
+                        new PaymentDetailResponse(902L, "flight")
+                )
+        );
+        when(contractService.getContract(456L, "contract-123"))
                 .thenReturn(response);
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/service-456/contracts/contract-123"
+                        "/hub/api/v1/services/456/contracts/contract-123"
                 ))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.policyNumber").value("contract-123"))
-                .andExpect(jsonPath("$.state").value("ACTIVE"))
-                .andExpect(jsonPath("$.insuredObject").value("vehicle"));
+                .andExpect(jsonPath("$.contractNumber").value("contract-123"))
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.amount").value(15000.00))
+                .andExpect(jsonPath("$.currency").value("KZT"))
+                .andExpect(jsonPath("$.paymentDetails[0].serviceFieldId").value(901))
+                .andExpect(jsonPath("$.paymentDetails[0].value").value("contract-123"))
+                .andExpect(jsonPath("$.paymentDetails[1].serviceFieldId").value(902))
+                .andExpect(jsonPath("$.paymentDetails[1].value").value("flight"));
 
-        verify(contractService).getContract("service-456", "contract-123");
+        verify(contractService).getContract(456L, "contract-123");
     }
 
     @Test
     void returnsMissingContractAsNotFound() throws Exception {
-        when(contractService.getContract("service-456", "missing"))
+        when(contractService.getContract(456L, "missing"))
                 .thenThrow(new ContractNotFoundException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/service-456/contracts/missing"
+                        "/hub/api/v1/services/456/contracts/missing"
                 ))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("CONTRACT_NOT_FOUND"));
@@ -70,11 +81,11 @@ class ContractApiTest {
 
     @Test
     void returnsApplicationNotFoundForUnknownServiceId() throws Exception {
-        when(contractService.getContract("unknown-service", "contract-123"))
+        when(contractService.getContract(999L, "contract-123"))
                 .thenThrow(new ApplicationNotFoundException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/unknown-service/contracts/contract-123"
+                        "/hub/api/v1/services/999/contracts/contract-123"
                 ))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("APPLICATION_NOT_FOUND"));
@@ -82,11 +93,11 @@ class ContractApiTest {
 
     @Test
     void returnsConflictWhenApplicationIsUnavailable() throws Exception {
-        when(contractService.getContract("service-456", "contract-123"))
+        when(contractService.getContract(456L, "contract-123"))
                 .thenThrow(new ApplicationUnavailableException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/service-456/contracts/contract-123"
+                        "/hub/api/v1/services/456/contracts/contract-123"
                 ))
                 .andExpect(status().isConflict())
                 .andExpect(header().string("Cache-Control", "no-store"))
@@ -95,11 +106,11 @@ class ContractApiTest {
 
     @Test
     void hidesPartnerFailureBehindBadGateway() throws Exception {
-        when(contractService.getContract("service-456", "contract-123"))
+        when(contractService.getContract(456L, "contract-123"))
                 .thenThrow(new PartnerApiUnavailableException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/service-456/contracts/contract-123"
+                        "/hub/api/v1/services/456/contracts/contract-123"
                 ))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("PARTNER_API_UNAVAILABLE"))
@@ -110,7 +121,7 @@ class ContractApiTest {
 
     @Test
     void returnsPartnerBusinessErrorAsUnprocessableEntity() throws Exception {
-        when(contractService.getContract("service-456", "contract-123"))
+        when(contractService.getContract(456L, "contract-123"))
                 .thenThrow(new PartnerBusinessException(
                         "Contract amount is invalid",
                         "CONTRACT_DIFFERENT_AMOUNT",
@@ -118,7 +129,7 @@ class ContractApiTest {
                 ));
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/service-456/contracts/contract-123"
+                        "/hub/api/v1/services/456/contracts/contract-123"
                 ))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(header().string("Cache-Control", "no-store"))

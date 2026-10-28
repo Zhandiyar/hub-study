@@ -3,6 +3,7 @@ package com.study.hub.client.appregistry;
 import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
 import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
+import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -55,7 +57,7 @@ public class AppRegistryClient {
         return configuration;
     }
 
-    public ApplicationRoutingResponse getRoutingByServiceId(String serviceId) {
+    public ApplicationRoutingResponse getRoutingByServiceId(Long serviceId) {
         ApplicationRoutingResponse routing = execute(
                 "get-application-routing",
                 serviceId,
@@ -70,11 +72,15 @@ public class AppRegistryClient {
         );
 
         if (routing == null
+                || !serviceId.equals(routing.serviceId())
                 || routing.appId() == null
                 || routing.appId().isBlank()
                 || routing.groupId() == null
                 || routing.groupId().isBlank()
-                || routing.status() == null) {
+                || routing.status() == null
+                || routing.contractNumberServiceFieldId() == null
+                || routing.contractNumberServiceFieldId() <= 0
+                || hasInvalidFieldMappings(routing.paymentFieldMappings())) {
             log.warn(
                     "App-registry returned an empty or incomplete routing response: serviceId={}",
                     serviceId
@@ -82,6 +88,18 @@ public class AppRegistryClient {
             throw new AppRegistryUnavailableException();
         }
         return routing;
+    }
+
+    private boolean hasInvalidFieldMappings(
+            List<PaymentFieldMappingResponse> mappings
+    ) {
+        return mappings == null || mappings.stream().anyMatch(mapping ->
+                mapping == null
+                        || mapping.code() == null
+                        || mapping.code().isBlank()
+                        || mapping.serviceFieldId() == null
+                        || mapping.serviceFieldId() <= 0
+        );
     }
 
     public CatalogGroupResponse getCatalog() {
@@ -108,7 +126,7 @@ public class AppRegistryClient {
 
     private <T> T execute(
             String operation,
-            String resourceId,
+            Object resourceId,
             Supplier<T> request,
             Supplier<? extends RuntimeException> notFoundException
     ) {

@@ -12,6 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
@@ -52,15 +54,18 @@ class ApplicationAvailabilityServiceTest {
     @Test
     void returnsActiveRouting() {
         ApplicationRoutingResponse routing = new ApplicationRoutingResponse(
+                456L,
                 "insurance",
                 "insurance-app",
-                ApplicationStatus.ACTIVE
+                ApplicationStatus.ACTIVE,
+                901L,
+                List.of()
         );
-        when(appRegistryClient.getRoutingByServiceId("service-456"))
+        when(appRegistryClient.getRoutingByServiceId(456L))
                 .thenReturn(routing);
 
         ApplicationRoutingResponse result = service()
-                .getActiveRoutingByServiceId("service-456");
+                .getActiveRoutingByServiceId(456L);
 
         assertThat(result).isSameAs(routing);
     }
@@ -71,15 +76,18 @@ class ApplicationAvailabilityServiceTest {
             names = {"DISABLED", "MAINTENANCE"}
     )
     void rejectsUnavailableRoutingStatus(ApplicationStatus status) {
-        when(appRegistryClient.getRoutingByServiceId("service-456"))
+        when(appRegistryClient.getRoutingByServiceId(456L))
                 .thenReturn(new ApplicationRoutingResponse(
+                        456L,
                         "insurance",
                         "insurance-app",
-                        status
+                        status,
+                        901L,
+                        List.of()
                 ));
 
         assertThatThrownBy(() -> service()
-                .getActiveRoutingByServiceId("service-456"))
+                .getActiveRoutingByServiceId(456L))
                 .isInstanceOf(ApplicationUnavailableException.class);
     }
 

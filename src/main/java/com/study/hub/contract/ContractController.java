@@ -1,6 +1,5 @@
 package com.study.hub.contract;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.study.hub.openapi.ApiPartnerProblemResponse;
 import com.study.hub.openapi.ApiProblemDetail;
 import com.study.hub.openapi.ApiProblemResponses;
@@ -12,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -42,7 +42,7 @@ public class ContractController {
             description = "Договор найден",
             content = @Content(
                     mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(type = "object")
+                    schema = @Schema(implementation = ContractResponse.class)
             )
     )
     @ApiResponse(
@@ -53,14 +53,14 @@ public class ContractController {
                     schema = @Schema(implementation = ApiProblemDetail.class)
             )
     )
-    public ResponseEntity<JsonNode> getContract(
+    public ResponseEntity<ContractResponse> getContract(
             @Parameter(description = "Идентификатор платёжного сервиса")
             @PathVariable
-            @NotBlank
-            @Size(max = 128)
-            String serviceId,
+            @Positive
+            Long serviceId,
             @Parameter(description = "Номер договора")
             @PathVariable
+            @NotBlank
             @Size(max = 128)
             String contractNumber
     ) {
