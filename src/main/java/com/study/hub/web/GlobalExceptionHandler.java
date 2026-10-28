@@ -3,6 +3,7 @@ package com.study.hub.web;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
+import com.study.hub.exception.CatalogGroupNotFoundException;
 import com.study.hub.exception.ContractNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
@@ -47,6 +48,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                         "Application not found",
                         "Partner application was not found",
                         ProblemType.APPLICATION_NOT_FOUND,
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(CatalogGroupNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleCatalogGroupNotFound(
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .cacheControl(CacheControl.noStore())
+                .body(problemDetailFactory.create(
+                        HttpStatus.NOT_FOUND,
+                        "Catalog group not found",
+                        "Catalog group was not found",
+                        ProblemType.CATALOG_GROUP_NOT_FOUND,
                         request.getRequestURI()
                 ));
     }

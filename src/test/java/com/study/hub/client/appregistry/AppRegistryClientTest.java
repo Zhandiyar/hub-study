@@ -4,9 +4,11 @@ import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.client.appregistry.dto.CatalogApplicationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
+import com.study.hub.client.appregistry.dto.CatalogListItemResponse;
 import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
+import com.study.hub.exception.CatalogGroupNotFoundException;
 import com.study.hub.client.appregistry.model.ApplicationStatus;
 import com.study.hub.client.appregistry.model.IntegrationType;
 import com.study.hub.client.appregistry.model.SessionMode;
@@ -20,6 +22,7 @@ import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -400,6 +403,72 @@ class AppRegistryClientTest {
                 .andRespond(withSuccess());
 
         assertThatThrownBy(client::getCatalog)
+                .isInstanceOf(AppRegistryUnavailableException.class);
+        server.verify();
+    }
+
+    @Test
+    void returnsFlatCatalogGroupItems() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/catalog/groups/ecosystem/items"
+                ))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        [
+                          {
+                            "id": "travel-app",
+                            "type": "APPLICATION",
+                            "title": {
+                              "ru": "Путешествия",
+                              "kk": "Саяхат",
+                              "en": "Travel"
+                            },
+                            "iconUrl": null
+                          },
+                          {
+                            "id": "insurance",
+                            "type": "GROUP",
+                            "title": {
+                              "ru": "Страхование",
+                              "kk": "Сақтандыру",
+                              "en": "Insurance"
+                            },
+                            "iconUrl": null
+                          }
+                        ]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<CatalogListItemResponse> result =
+                client.getCatalogGroupItems("ecosystem");
+
+        assertThat(result).extracting(CatalogListItemResponse::id)
+                .containsExactly("travel-app", "insurance");
+        assertThat(result.getFirst().type().name()).isEqualTo("APPLICATION");
+        server.verify();
+    }
+
+    @Test
+    void mapsUnknownCatalogGroupToNotFound() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/catalog/groups/missing/items"
+                ))
+                .andRespond(withResourceNotFound());
+
+        assertThatThrownBy(() -> client.getCatalogGroupItems("missing"))
+                .isInstanceOf(CatalogGroupNotFoundException.class);
+        server.verify();
+    }
+
+    @Test
+    void rejectsIncompleteFlatCatalogItem() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/catalog/groups/ecosystem/items"
+                ))
+                .andRespond(withSuccess("""
+                        [{"id":"travel-app","type":"APPLICATION"}]
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.getCatalogGroupItems("ecosystem"))
                 .isInstanceOf(AppRegistryUnavailableException.class);
         server.verify();
     }

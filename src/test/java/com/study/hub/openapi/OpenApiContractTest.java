@@ -84,6 +84,22 @@ class OpenApiContractTest {
                 .path("properties");
         assertThat(catalogApplicationSchema.has("id")).isTrue();
         assertThat(catalogApplicationSchema.has("appId")).isFalse();
+        JsonNode groupItemsOperation = operation(
+                openApi,
+                "/hub/api/v1/catalog/groups/{groupId}/items"
+        );
+        assertResponses(
+                groupItemsOperation,
+                "200", "400", "401", "404", "500", "503"
+        );
+        JsonNode groupItemsSchema = groupItemsOperation.path("responses")
+                .path("200")
+                .path("content")
+                .path("application/json")
+                .path("schema");
+        assertThat(groupItemsSchema.path("type").asText()).isEqualTo("array");
+        assertThat(groupItemsSchema.path("items").path("$ref").asText())
+                .isEqualTo("#/components/schemas/CatalogListItemResponse");
         JsonNode contractOperation = operation(
                 openApi,
                 "/hub/api/v1/services/{serviceId}/contracts/{contractNumber}"

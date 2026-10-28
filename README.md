@@ -62,8 +62,9 @@ App Study и демонстрационные партнёрские API дос�
 | Метод | Маршрут                                                             | Назначение |
 |---|---------------------------------------------------------------------|---|
 | `GET` | `/hub/api/v1/catalog` | Получить дерево каталога |
+| `GET` | `/hub/api/v1/catalog/groups/{groupId}/items` | Получить непосредственные элементы группы плоским списком |
 | `GET` | `/hub/api/v1/applications/{appId}` | Получить конфигурацию приложения |
-| `GET` | `/hub/api/v1/applications/{appId}/contracts/{contractNumber}` | Получить договор |
+| `GET` | `/hub/api/v1/services/{serviceId}/contracts/{contractNumber}` | Получить договор |
 | `POST` | `/hub/api/v1/applications/{appId}/launch` | Получить данные для запуска приложения |
 
 `GET /applications/{appId}` возвращает приложение в любом статусе: `ACTIVE`,
@@ -75,38 +76,55 @@ App Study и демонстрационные партнёрские API дос�
 `catalog` возвращает корневую группу `ecosystem`, группы первого уровня и приложения.
 Для всех элементов используются общие поля `id` и `type`. У группы `id`
 содержит `groupId`, у приложения — `appId`; при выборе `APPLICATION` мобильный
-клиент передаёт его `id` как `{appId}` в launch или contract API. Также каталог
+клиент передаёт его `id` как `{appId}` в launch API. Для получения договора
+используется `serviceId` из финансовой конфигурации приложения. Также каталог
 содержит локализованный `title`, `iconUrl`, `layout`, статус и
 maintenance-сообщения. Runtime-настройки WebView и партнёрская сессия в каталог
 не входят. В каталог включаются только `ACTIVE` и `MAINTENANCE`; `DISABLED`
 скрывается.
 
+`GET /catalog/groups/{groupId}/items` используется для поэтапной загрузки.
+Он возвращает один массив непосредственных дочерних `GROUP` и `APPLICATION`
+без вложенных `items`, статуса и maintenance-сообщений. В список попадают
+только активные приложения и непустые группы; элементы отсортированы по
+`displayOrder`, затем по `id`. Для неизвестной группы API возвращает `404`,
+для существующей пустой группы — `200` и `[]`.
+
 Успешные ответы перечисленных бизнес-API содержат `Cache-Control: no-store`.
 
 ## Взаимодействие с App Study
 
-Study Hub передаёт пользовательский JWT в следующие внутренние API:
+Study Hub обращается к следующим внутренним API без пользовательского JWT:
 
 ```text
 GET /internal/api/v1/applications/{appId}/configuration
+GET /internal/api/v1/applications/by-service-id?serviceId={serviceId}
 GET /internal/api/v1/catalog
+GET /internal/api/v1/catalog/groups/{groupId}/items
 ```
 
 Текущие consumer-контракты Study Hub:
 
 ```text
 HubApplicationConfigurationResponse
+ApplicationRoutingResponse
 CatalogGroupResponse
+CatalogListItemResponse
 ```
 
 DTO клиента находятся в пакете `client.appregistry.dto` и отражают сетевой
 контракт App Study. Дополнительный mapper внутри Study Hub для них не нужен.
 
+Пользовательский заголовок `Authorization` передаётся только партнёрскому API.
+Внутренние endpoint App Study должны быть недоступны из внешнего контура и
+ограничены Kubernetes NetworkPolicy и, при наличии инфраструктуры, mTLS.
+
 Контракты соответствуют App Study: maintenance-сообщения передаются объектом
 `maintenanceMessages`, каталог содержит группы и приложения, а опциональная
 финансовая конфигурация передаётся в `financialConfiguration`. Если она не
 настроена, поле присутствует со значением `null`. При наличии объект содержит
-`merchantId`, `serviceId`, `paymentWebhookUrl` и `credentialId`. Enum должны
+`merchantId`, `serviceId`, `contractNumberServiceFieldId`, `notificationFields`,
+`paymentWebhookUrl` и `credentialId`. Enum должны
 иметь одинаковые значения `ApplicationStatus`, `IntegrationType`, `SessionMode`,
 `GroupLayout` и `CatalogItemType`.
 
@@ -115,8 +133,9 @@ DTO клиента находятся в пакете `client.appregistry.dto` �
 `paymentWebhookUrl` и `credentialId`.
 
 В этой модели App Study является единственным владельцем конфигурации и
-проверяет формат `appId` при регистрации. Перед вызовом партнёра Study Hub
-проверяет, что приложение существует в App Study.
+проверяет формат `appId` при регистрации. Для договорной операции Study Hub
+разрешает внешний `serviceId` в `groupId`, `appId` и `status`. Партнёр вызывается
+только для приложения в статусе `ACTIVE`.
 
 ## Маршрутизация к партнёрам
 
@@ -143,10 +162,45 @@ POST http://{appId}/internal/api/v1/session/code
 отличаться. Если сервисы будут размещены в разных namespace, потребуется полный
 DNS-адрес либо отдельная конфигурация маршрута.
 
-Ответ договора не унифицирован между партнёрами, поэтому Study Hub передаёт его
-как JSON-объект. Партнёрский API обязан исключить секреты и внутренние
-технические поля. Пустой ответ или JSON другого типа преобразуется в
-`502 Bad Gateway`.
+Адаптеры нормализуют ответ конкретного партнёра в общий внутренний
+контракт:
+
+```json
+{
+  "contractNumber": "TRAVEL-2026-001",
+  "status": "ACTIVE",
+  "amount": 15000.00,
+  "currency": "KZT",
+  "paymentFields": {
+    "type": "flight"
+  }
+}
+```
+
+`paymentFields` содержит стабильные внутренние коды. Travel-адаптер,
+например, преобразует партнёрское `orderType` в `paymentFields.type`.
+Другие адаптеры передают пустой объект, если дополнительных реквизитов нет.
+
+Hub получает из App Study `contractNumberServiceFieldId` и
+`paymentFieldMappings`, связывает их со значениями адаптера и отдаёт
+мобильному клиенту готовые реквизиты:
+
+```json
+{
+  "contractNumber": "TRAVEL-2026-001",
+  "status": "ACTIVE",
+  "amount": 15000.00,
+  "currency": "KZT",
+  "paymentDetails": [
+    {"serviceFieldId": 901, "value": "TRAVEL-2026-001"},
+    {"serviceFieldId": 902, "value": "flight"}
+  ]
+}
+```
+
+Мобильный клиент не знает о `orderType`, коде `type` или правилах App Study,
+а передаёт `paymentDetails` в процесс оплаты. Пустой, неполный или
+противоречивый ответ адаптера преобразуется в `502 Bad Gateway`.
 
 Ожидаемая бизнес-ошибка партнёра имеет статус `422 Unprocessable Entity`:
 
@@ -283,14 +337,23 @@ Gateway. Более безопасный вариант — повторная J
 
 ## Логирование
 
-Учебный профиль `prod` демонстрирует структурированные JSON-логи. В MDC
-добавляются `traceId` и `correlationId`, эти же заголовки передаются в
-зависимости.
+Профиль `prod` использует нативный ECS-формат Spring Boot и пишет одну
+JSON-запись на строку в `stdout`. В MDC добавляются `traceId` и `correlationId`;
+эти же значения передаются зависимостям в заголовках `X-Trace-Id` и
+`X-Correlation-Id`.
+
+Logbook журналирует входящие и исходящие HTTP-вызовы. Для успешных операций
+записываются метаданные запроса и ответа, тела добавляются только при статусе
+`400` и выше. Contract endpoint исключены из Logbook целиком, поскольку URL
+содержит номер договора, а партнёр может вернуть произвольные чувствительные
+данные. Для launch и session успешные тела с token/code не записываются, а
+технические метаданные и безопасно отфильтрованные тела ошибок остаются доступны.
 
 Логируются:
 
 - ошибки и недоступность App Study;
-- ошибки партнёрских сервисов без тела ответа;
+- HTTP-метаданные и отфильтрованные тела ошибок launch/session;
+- безопасные коды ошибок партнёрских сервисов;
 - успешная подготовка запуска — только `appId`, `integrationType` и `sessionMode`;
 - отклонение launch-запроса для недоступного приложения;
 - непредвиденные ошибки со stack trace.
@@ -298,10 +361,35 @@ Gateway. Более безопасный вариант — повторная J
 Не логируются:
 
 - JWT и заголовок `Authorization`;
-- `session.value`, партнёрские `token` и `code`;
+- успешные тела launch/session с `session.value`, партнёрскими `token` и `code`;
 - номер и содержимое договора;
-- тела launch/session/contract запросов и ответов;
+- любые тела contract запросов и ответов;
 - секреты и credential-related поля.
+
+Приложение не подключается к Elasticsearch или Logstash напрямую. В Kubernetes
+логи должны собираться платформенным агентом:
+
+```text
+Hub stdout → Filebeat / Fluent Bit / Vector → Logstash → Elasticsearch → Kibana
+```
+
+Для передачи в ELK необходимо:
+
+- запускать приложение с профилем `prod`;
+- настроить collector на разбор ECS JSON — одна запись на строку;
+- сохранять ECS-поля `@timestamp`, `service.name`, `log.level`, `log.logger`,
+  `traceId`, `correlationId` и HTTP-поля Logbook;
+- добавлять Kubernetes metadata на стороне collector;
+- не применять multiline parser: stack trace находится внутри одной JSON-записи.
+
+## Метрики
+
+Actuator публикует Prometheus-метрики на внутреннем endpoint
+`GET /actuator/prometheus`. Prometheus забирает их из Kubernetes по расписанию;
+Hub не подключается к Prometheus или Grafana напрямую. Endpoint не должен
+маршрутизироваться через внешний Gateway. Способ обнаружения сервиса
+(`ServiceMonitor`, `PodMonitor` или annotations) определяется Kubernetes-
+платформой.
 
 ## Конфигурация
 
@@ -311,6 +399,8 @@ Gateway. Более безопасный вариант — повторная J
 |---|---|
 | `APP_REGISTRY_BASE_URL` | Внутренний URL App Study |
 | `APP_PROBLEMS_BASE_URI` | Базовый URI типов Problem Details |
+| `APP_VERSION` | Версия приложения в ECS-логах |
+| `APP_ENVIRONMENT` | Название окружения в ECS-логах, по умолчанию `prod` |
 
 Настройки исходящих HTTP-вызовов:
 
@@ -373,7 +463,7 @@ kubectl -n demo-platform port-forward service/hub 8080:80
 JSON-ответами учебного App Study и демонстрационных партнёрских сервисов, а не
 только с вручную созданными mock-ответами.
 
-## Учебный профиль `prod`
+## Профиль `prod`
 
 Профиль `prod`:
 

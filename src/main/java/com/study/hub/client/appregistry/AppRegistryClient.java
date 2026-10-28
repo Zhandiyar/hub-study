@@ -1,13 +1,16 @@
 package com.study.hub.client.appregistry;
 
-import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
-import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
 import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
+import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
+import com.study.hub.client.appregistry.dto.CatalogListItemResponse;
+import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
+import com.study.hub.exception.CatalogGroupNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -122,6 +125,39 @@ public class AppRegistryClient {
             throw new AppRegistryUnavailableException();
         }
         return catalog;
+    }
+
+    public List<CatalogListItemResponse> getCatalogGroupItems(String groupId) {
+        List<CatalogListItemResponse> items = execute(
+                "get-catalog-group-items",
+                groupId,
+                () -> restClient.get()
+                        .uri(
+                                "/internal/api/v1/catalog/groups/{groupId}/items",
+                                groupId
+                        )
+                        .retrieve()
+                        .body(new ParameterizedTypeReference<>() {
+                        }),
+                () -> new CatalogGroupNotFoundException(groupId)
+        );
+
+        if (items == null || items.stream().anyMatch(this::isInvalidCatalogListItem)) {
+            log.warn(
+                    "App-registry returned an empty or incomplete catalog list: groupId={}",
+                    groupId
+            );
+            throw new AppRegistryUnavailableException();
+        }
+        return List.copyOf(items);
+    }
+
+    private boolean isInvalidCatalogListItem(CatalogListItemResponse item) {
+        return item == null
+                || item.id() == null
+                || item.id().isBlank()
+                || item.type() == null
+                || item.title() == null;
     }
 
     private <T> T execute(
