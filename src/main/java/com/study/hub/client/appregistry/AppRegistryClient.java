@@ -2,7 +2,6 @@ package com.study.hub.client.appregistry;
 
 import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
-import com.study.hub.client.appregistry.dto.CatalogListItemResponse;
 import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
@@ -10,7 +9,6 @@ import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.CatalogGroupNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -60,33 +58,29 @@ public class AppRegistryClient {
         return configuration;
     }
 
-    public ApplicationRoutingResponse getRoutingByServiceId(Long serviceId) {
+    public ApplicationRoutingResponse getRoutingByAppId(String appId) {
         ApplicationRoutingResponse routing = execute(
                 "get-application-routing",
-                serviceId,
+                appId,
                 () -> restClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .path("/internal/api/v1/applications/by-service-id")
-                                .queryParam("serviceId", serviceId)
-                                .build())
+                        .uri(
+                                "/internal/api/v1/applications/{appId}/routing",
+                                appId
+                        )
                         .retrieve()
                         .body(ApplicationRoutingResponse.class),
                 ApplicationNotFoundException::new
         );
 
         if (routing == null
-                || !serviceId.equals(routing.serviceId())
                 || routing.appId() == null
+                || !appId.equals(routing.appId())
                 || routing.appId().isBlank()
-                || routing.groupId() == null
-                || routing.groupId().isBlank()
                 || routing.status() == null
-                || routing.contractNumberServiceFieldId() == null
-                || routing.contractNumberServiceFieldId() <= 0
                 || hasInvalidFieldMappings(routing.paymentFieldMappings())) {
             log.warn(
-                    "App-registry returned an empty or incomplete routing response: serviceId={}",
-                    serviceId
+                    "App-registry returned an empty or incomplete routing response: appId={}",
+                    appId
             );
             throw new AppRegistryUnavailableException();
         }
@@ -116,48 +110,41 @@ public class AppRegistryClient {
                 AppRegistryUnavailableException::new
         );
 
-        if (catalog == null
-                || catalog.id() == null
-                || catalog.layout() == null
-                || catalog.title() == null
-                || catalog.items() == null) {
-            log.warn("App-registry returned an empty or incomplete catalog response");
-            throw new AppRegistryUnavailableException();
-        }
-        return catalog;
+        return validateCatalogGroup(catalog, "ecosystem");
     }
 
-    public List<CatalogListItemResponse> getCatalogGroupItems(String groupId) {
-        List<CatalogListItemResponse> items = execute(
-                "get-catalog-group-items",
+    public CatalogGroupResponse getCatalogGroup(String groupId) {
+        CatalogGroupResponse group = execute(
+                "get-catalog-group",
                 groupId,
                 () -> restClient.get()
                         .uri(
-                                "/internal/api/v1/catalog/groups/{groupId}/items",
+                                "/internal/api/v1/catalog/groups/{groupId}",
                                 groupId
                         )
                         .retrieve()
-                        .body(new ParameterizedTypeReference<>() {
-                        }),
+                        .body(CatalogGroupResponse.class),
                 () -> new CatalogGroupNotFoundException(groupId)
         );
+        return validateCatalogGroup(group, groupId);
+    }
 
-        if (items == null || items.stream().anyMatch(this::isInvalidCatalogListItem)) {
+    private CatalogGroupResponse validateCatalogGroup(
+            CatalogGroupResponse group,
+            String expectedGroupId
+    ) {
+        if (group == null
+                || !expectedGroupId.equals(group.id())
+                || group.layout() == null
+                || group.title() == null
+                || group.items() == null) {
             log.warn(
-                    "App-registry returned an empty or incomplete catalog list: groupId={}",
-                    groupId
+                    "App-registry returned an empty or incomplete catalog group: groupId={}",
+                    expectedGroupId
             );
             throw new AppRegistryUnavailableException();
         }
-        return List.copyOf(items);
-    }
-
-    private boolean isInvalidCatalogListItem(CatalogListItemResponse item) {
-        return item == null
-                || item.id() == null
-                || item.id().isBlank()
-                || item.type() == null
-                || item.title() == null;
+        return group;
     }
 
     private <T> T execute(

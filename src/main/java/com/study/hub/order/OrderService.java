@@ -1,9 +1,9 @@
-package com.study.hub.contract;
+package com.study.hub.order;
 
 import com.study.hub.application.ApplicationAvailabilityService;
 import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.client.partner.PartnerApiClient;
-import com.study.hub.client.partner.PartnerContractResponse;
+import com.study.hub.client.partner.PartnerOrderResponse;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,29 +15,34 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ContractService {
+public class OrderService {
 
     private final ApplicationAvailabilityService applicationAvailabilityService;
     private final PartnerApiClient partnerApiClient;
 
-    public ContractResponse getContract(Long serviceId, String contractNumber) {
+    public OrderResponse getOrder(
+            String appId,
+            String orderId,
+            String language
+    ) {
         var routing = applicationAvailabilityService
-                .getActiveRoutingByServiceId(serviceId);
-        PartnerContractResponse contract = partnerApiClient.getContract(
+                .getActiveRoutingByAppId(appId);
+        PartnerOrderResponse order = partnerApiClient.getOrder(
                 routing.appId(),
-                contractNumber
+                orderId,
+                language
         );
 
         List<PaymentDetailResponse> paymentDetails = new ArrayList<>();
         paymentDetails.add(new PaymentDetailResponse(
                 routing.contractNumberServiceFieldId(),
-                contract.contractNumber()
+                order.orderId()
         ));
         for (PaymentFieldMappingResponse mapping : routing.paymentFieldMappings()) {
-            String value = contract.paymentFields().get(mapping.code());
+            String value = order.paymentFields().get(mapping.code());
             if (value == null || value.isBlank()) {
                 log.warn(
-                        "Partner contract response misses configured payment field: "
+                        "Partner order response misses configured payment field: "
                                 + "appId={} fieldCode={}",
                         routing.appId(),
                         mapping.code()
@@ -47,19 +52,20 @@ public class ContractService {
             paymentDetails.add(new PaymentDetailResponse(mapping.serviceFieldId(), value));
         }
 
-        return toResponse(contract, paymentDetails);
+        return toResponse(routing.serviceId(), order, paymentDetails);
     }
 
-    private ContractResponse toResponse(
-            PartnerContractResponse contract,
+    private OrderResponse toResponse(
+            Long serviceId,
+            PartnerOrderResponse order,
             List<PaymentDetailResponse> paymentDetails
     ) {
-        return new ContractResponse(
-                contract.contractNumber(),
-                contract.status(),
-                contract.amount(),
-                contract.currency(),
-                paymentDetails
+        return new OrderResponse(
+                order.orderId(),
+                order.status(),
+                order.amount(),
+                order.data(),
+                new OrderPaymentResponse(serviceId, paymentDetails)
         );
     }
 }

@@ -4,7 +4,7 @@ import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.CatalogGroupNotFoundException;
-import com.study.hub.exception.ContractNotFoundException;
+import com.study.hub.exception.OrderNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,17 +67,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(ContractNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleContractNotFound(
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleOrderNotFound(
             HttpServletRequest request
     ) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .cacheControl(CacheControl.noStore())
                 .body(problemDetailFactory.create(
                         HttpStatus.NOT_FOUND,
-                        "Contract not found",
-                        "Contract was not found",
-                        ProblemType.CONTRACT_NOT_FOUND,
+                        "Order not found",
+                        "Order was not found",
+                        ProblemType.ORDER_NOT_FOUND,
                         request.getRequestURI()
                 ));
     }

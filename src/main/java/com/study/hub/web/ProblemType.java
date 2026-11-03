@@ -6,7 +6,7 @@ public enum ProblemType {
     MALFORMED_REQUEST("malformed-request", "MALFORMED_REQUEST"),
     APPLICATION_NOT_FOUND("application-not-found", "APPLICATION_NOT_FOUND"),
     CATALOG_GROUP_NOT_FOUND("catalog-group-not-found", "CATALOG_GROUP_NOT_FOUND"),
-    CONTRACT_NOT_FOUND("contract-not-found", "CONTRACT_NOT_FOUND"),
+    ORDER_NOT_FOUND("order-not-found", "ORDER_NOT_FOUND"),
     APPLICATION_UNAVAILABLE(
             "application-unavailable",
             "APPLICATION_UNAVAILABLE"

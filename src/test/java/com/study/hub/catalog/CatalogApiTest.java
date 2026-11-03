@@ -3,11 +3,9 @@ package com.study.hub.catalog;
 import com.study.hub.client.appregistry.AppRegistryClient;
 import com.study.hub.client.appregistry.dto.CatalogApplicationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
-import com.study.hub.client.appregistry.dto.CatalogListItemResponse;
 import com.study.hub.client.appregistry.dto.LocalizedTextResponse;
 import com.study.hub.client.appregistry.dto.MaintenanceMessagesResponse;
 import com.study.hub.client.appregistry.model.ApplicationStatus;
-import com.study.hub.client.appregistry.model.CatalogItemType;
 import com.study.hub.client.appregistry.model.GroupLayout;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.CatalogGroupNotFoundException;
@@ -71,41 +69,29 @@ class CatalogApiTest {
     }
 
     @Test
-    void returnsFlatItemsForRequestedGroup() throws Exception {
-        when(appRegistryClient.getCatalogGroupItems("ecosystem")).thenReturn(List.of(
-                new CatalogListItemResponse(
-                        "travel-app",
-                        CatalogItemType.APPLICATION,
-                        text("Путешествия", "Саяхат", "Travel"),
-                        null
-                ),
-                new CatalogListItemResponse(
-                        "insurance",
-                        CatalogItemType.GROUP,
-                        text("Страхование", "Сақтандыру", "Insurance"),
-                        null
-                )
-        ));
+    void returnsRequestedGroupUsingCatalogContract() throws Exception {
+        when(appRegistryClient.getCatalogGroup("ecosystem")).thenReturn(catalog());
 
-        mockMvc.perform(get("/hub/api/v1/catalog/groups/ecosystem/items"))
+        mockMvc.perform(get("/hub/api/v1/catalog/groups/ecosystem"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("travel-app"))
-                .andExpect(jsonPath("$[0].type").value("APPLICATION"))
-                .andExpect(jsonPath("$[0].title.en").value("Travel"))
-                .andExpect(jsonPath("$[0].status").doesNotExist())
-                .andExpect(jsonPath("$[0].items").doesNotExist())
-                .andExpect(jsonPath("$[1].id").value("insurance"))
-                .andExpect(jsonPath("$[1].type").value("GROUP"));
+                .andExpect(jsonPath("$.id").value("ecosystem"))
+                .andExpect(jsonPath("$.type").value("GROUP"))
+                .andExpect(jsonPath("$.layout").value("GRID"))
+                .andExpect(jsonPath("$.items[0].id").value("insurance"))
+                .andExpect(jsonPath("$.items[0].type").value("GROUP"))
+                .andExpect(jsonPath("$.items[0].layout").value("LIST"))
+                .andExpect(jsonPath("$.items[0].items[0].status")
+                        .value("MAINTENANCE"));
 
-        verify(appRegistryClient).getCatalogGroupItems("ecosystem");
+        verify(appRegistryClient).getCatalogGroup("ecosystem");
     }
 
     @Test
     void returnsNotFoundForUnknownCatalogGroup() throws Exception {
-        when(appRegistryClient.getCatalogGroupItems("missing"))
+        when(appRegistryClient.getCatalogGroup("missing"))
                 .thenThrow(new CatalogGroupNotFoundException("missing"));
 
-        mockMvc.perform(get("/hub/api/v1/catalog/groups/missing/items"))
+        mockMvc.perform(get("/hub/api/v1/catalog/groups/missing"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("CATALOG_GROUP_NOT_FOUND"));
     }

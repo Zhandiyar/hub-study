@@ -1,7 +1,7 @@
 package com.study.hub.client.partner;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.study.hub.exception.ContractNotFoundException;
+import com.study.hub.exception.OrderNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withResourceNotFound;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -36,52 +37,62 @@ class PartnerApiClientTest {
     }
 
     @Test
-    void returnsNormalizedPartnerContract() {
+    void returnsNormalizedPartnerOrder() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Accept-Language", "kk-KZ"))
                 .andRespond(withSuccess("""
                         {
-                          "contractNumber": "contract-123",
-                          "status": "ACTIVE",
+                          "orderId": "order-123",
+                          "status": "CREATED",
                           "amount": 15000.00,
-                          "currency": "KZT",
+                          "data": {
+                            "tickets": [
+                              {
+                                "route": "Алматы — Астана",
+                                "airport": "ALA — NQZ",
+                                "date": "2026-11-05T10:30:00+05:00"
+                              }
+                            ]
+                          },
                           "paymentFields": {
                             "type": "flight"
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        PartnerContractResponse result = client.getContract(
+        PartnerOrderResponse result = client.getOrder(
                 "insurance-app",
-                "contract-123"
+                "order-123",
+                "kk-KZ"
         );
 
-        assertThat(result.contractNumber()).isEqualTo("contract-123");
-        assertThat(result.status()).isEqualTo("ACTIVE");
+        assertThat(result.orderId()).isEqualTo("order-123");
+        assertThat(result.status()).isEqualTo("CREATED");
         assertThat(result.amount()).isEqualByComparingTo("15000.00");
-        assertThat(result.currency()).isEqualTo("KZT");
+        assertThat(result.data()).containsKey("tickets");
         assertThat(result.paymentFields()).containsEntry("type", "flight");
         server.verify();
     }
 
     @Test
-    void mapsMissingContractToNotFound() {
+    void mapsMissingOrderToNotFound() {
         server.expect(requestTo(
                         "http://insurance-app/internal/api/v1/contracts/missing"
                 ))
                 .andRespond(withResourceNotFound());
 
-        assertThatThrownBy(() -> client.getContract("insurance-app", "missing"))
-                .isInstanceOf(ContractNotFoundException.class);
+        assertThatThrownBy(() -> client.getOrder("insurance-app", "missing", "ru"))
+                .isInstanceOf(OrderNotFoundException.class);
         server.verify();
     }
 
     @Test
     void hidesPartnerServerError() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -91,9 +102,10 @@ class PartnerApiClientTest {
                                 }
                                 """));
 
-        assertThatThrownBy(() -> client.getContract(
+        assertThatThrownBy(() -> client.getOrder(
                 "insurance-app",
-                "contract-123"
+                "order-123",
+                "ru"
         ))
                 .isInstanceOf(PartnerApiUnavailableException.class)
                 .hasMessage("Partner service is temporarily unavailable")
@@ -104,13 +116,14 @@ class PartnerApiClientTest {
     @Test
     void mapsPartnerUnauthorizedToUnavailable() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
-        assertThatThrownBy(() -> client.getContract(
+        assertThatThrownBy(() -> client.getOrder(
                 "insurance-app",
-                "contract-123"
+                "order-123",
+                "ru"
         ))
                 .isInstanceOf(PartnerApiUnavailableException.class)
                 .hasMessage("Partner service is temporarily unavailable")
@@ -121,7 +134,7 @@ class PartnerApiClientTest {
     @Test
     void mapsPartnerBusinessError() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -135,9 +148,10 @@ class PartnerApiClientTest {
                                 }
                                 """));
 
-        assertThatThrownBy(() -> client.getContract(
+        assertThatThrownBy(() -> client.getOrder(
                 "insurance-app",
-                "contract-123"
+                "order-123",
+                "ru"
         )).isInstanceOfSatisfying(PartnerBusinessException.class, exception -> {
             assertThat(exception.getMessage()).isEqualTo("Contract amount is invalid");
             assertThat(exception.errorCode()).isEqualTo("CONTRACT_DIFFERENT_AMOUNT");
@@ -149,50 +163,59 @@ class PartnerApiClientTest {
     @Test
     void rejectsEmptySuccessfulResponse() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andRespond(withSuccess());
 
-        assertThatThrownBy(() -> client.getContract(
+        assertThatThrownBy(() -> client.getOrder(
                 "insurance-app",
-                "contract-123"
+                "order-123",
+                "ru"
         ))
                 .isInstanceOf(PartnerApiUnavailableException.class);
         server.verify();
     }
 
     @Test
-    void rejectsJsonWithoutRequiredContractFields() {
+    void rejectsJsonWithoutRequiredOrderFields() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andRespond(withSuccess("""
                         {
-                          "contractNumber": "contract-123",
-                          "status": "ACTIVE"
+                          "orderId": "order-123",
+                          "status": "CREATED"
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.getContract("insurance-app", "contract-123"))
+        assertThatThrownBy(() -> client.getOrder(
+                "insurance-app", "order-123", "ru"
+        ))
                 .isInstanceOf(PartnerApiUnavailableException.class);
         server.verify();
     }
 
     @Test
-    void rejectsContractNumberDifferentFromRequested() {
+    void rejectsOrderIdDifferentFromRequested() {
         server.expect(requestTo(
-                        "http://insurance-app/internal/api/v1/contracts/contract-123"
+                        "http://insurance-app/internal/api/v1/contracts/order-123"
                 ))
                 .andRespond(withSuccess("""
                         {
-                          "contractNumber": "another-contract",
-                          "status": "ACTIVE",
+                          "orderId": "another-order",
+                          "status": "CREATED",
                           "amount": 100.00,
-                          "currency": "KZT"
+                          "data": {
+                            "tickets": [
+                              {"route": "A", "airport": "ALA", "date": "2026-11-05"}
+                            ]
+                          }
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.getContract("insurance-app", "contract-123"))
+        assertThatThrownBy(() -> client.getOrder(
+                "insurance-app", "order-123", "ru"
+        ))
                 .isInstanceOf(PartnerApiUnavailableException.class);
         server.verify();
     }

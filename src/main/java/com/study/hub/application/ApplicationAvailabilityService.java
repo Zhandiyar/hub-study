@@ -31,16 +31,26 @@ public class ApplicationAvailabilityService {
         return configuration;
     }
 
-    public ApplicationRoutingResponse getActiveRoutingByServiceId(Long serviceId) {
-        ApplicationRoutingResponse routing = appRegistryClient.getRoutingByServiceId(serviceId);
+    public ApplicationRoutingResponse getActiveRoutingByAppId(String appId) {
+        ApplicationRoutingResponse routing = appRegistryClient.getRoutingByAppId(appId);
 
         if (routing.status() != ApplicationStatus.ACTIVE) {
             log.info(
                     "Partner operation rejected due to application status: "
-                            + "serviceId={} appId={} status={}",
-                    serviceId,
+                            + "appId={} status={}",
                     routing.appId(),
                     routing.status()
+            );
+            throw new ApplicationUnavailableException();
+        }
+        if (routing.serviceId() == null
+                || routing.serviceId() <= 0
+                || routing.contractNumberServiceFieldId() == null
+                || routing.contractNumberServiceFieldId() <= 0) {
+            log.info(
+                    "Partner operation rejected because payment routing is not configured: "
+                            + "appId={}",
+                    routing.appId()
             );
             throw new ApplicationUnavailableException();
         }

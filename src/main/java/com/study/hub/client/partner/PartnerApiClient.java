@@ -1,10 +1,11 @@
 package com.study.hub.client.partner;
 
-import com.study.hub.exception.ContractNotFoundException;
+import com.study.hub.exception.OrderNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -14,8 +15,8 @@ import org.springframework.web.client.RestClientResponseException;
 @Slf4j
 @Component
 public class PartnerApiClient {
-    private static final String CONTRACT_URL =
-            "http://{appId}/internal/api/v1/contracts/{contractNumber}";
+    private static final String ORDER_URL =
+            "http://{appId}/internal/api/v1/contracts/{orderId}";
     private static final String SESSION_TOKEN_URL =
             "http://{appId}/internal/api/v1/session/token";
     private static final String SESSION_CODE_URL =
@@ -32,22 +33,27 @@ public class PartnerApiClient {
         this.errorParser = errorParser;
     }
 
-    public PartnerContractResponse getContract(String appId, String contractNumber) {
+    public PartnerOrderResponse getOrder(
+            String appId,
+            String orderId,
+            String language
+    ) {
         try {
-            PartnerContractResponse contract = restClient.get()
-                    .uri(CONTRACT_URL, appId, contractNumber)
+            PartnerOrderResponse order = restClient.get()
+                    .uri(ORDER_URL, appId, orderId)
+                    .header(HttpHeaders.ACCEPT_LANGUAGE, language)
                     .retrieve()
-                    .body(PartnerContractResponse.class);
+                    .body(PartnerOrderResponse.class);
 
-            if (isInvalidContract(contract, contractNumber)) {
-                log.warn("Partner service returned an invalid contract response: appId={}", appId);
+            if (isInvalidOrder(order, orderId)) {
+                log.warn("Partner service returned an invalid order response: appId={}", appId);
                 throw new PartnerApiUnavailableException();
             }
-            return contract;
+            return order;
         } catch (HttpClientErrorException.NotFound exception) {
-            throw new ContractNotFoundException();
+            throw new OrderNotFoundException();
         } catch (RestClientResponseException exception) {
-            throw mapResponseException(appId, "get-contract", exception);
+            throw mapResponseException(appId, "get-order", exception);
         } catch (RestClientException exception) {
             log.warn(
                     "Could not call partner service: appId={} errorType={}",
@@ -58,18 +64,16 @@ public class PartnerApiClient {
         }
     }
 
-    private boolean isInvalidContract(
-            PartnerContractResponse contract,
-            String requestedContractNumber
+    private boolean isInvalidOrder(
+            PartnerOrderResponse order,
+            String requestedOrderId
     ) {
-        return contract == null
-                || contract.contractNumber() == null
-                || !contract.contractNumber().equals(requestedContractNumber)
-                || contract.status() == null
-                || contract.status().isBlank()
-                || contract.amount() == null
-                || contract.currency() == null
-                || contract.currency().isBlank();
+        return order == null
+                || order.orderId() == null
+                || !order.orderId().equals(requestedOrderId)
+                || order.status() == null
+                || order.status().isBlank()
+                || order.amount() == null;
     }
 
     public String createSessionToken(String appId) {

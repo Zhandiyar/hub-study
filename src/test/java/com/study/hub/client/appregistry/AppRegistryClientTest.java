@@ -4,7 +4,6 @@ import com.study.hub.client.appregistry.dto.HubApplicationConfigurationResponse;
 import com.study.hub.client.appregistry.dto.ApplicationRoutingResponse;
 import com.study.hub.client.appregistry.dto.CatalogApplicationResponse;
 import com.study.hub.client.appregistry.dto.CatalogGroupResponse;
-import com.study.hub.client.appregistry.dto.CatalogListItemResponse;
 import com.study.hub.client.appregistry.dto.PaymentFieldMappingResponse;
 import com.study.hub.exception.AppRegistryUnavailableException;
 import com.study.hub.exception.ApplicationNotFoundException;
@@ -134,16 +133,14 @@ class AppRegistryClientTest {
     }
 
     @Test
-    void returnsApplicationRoutingByServiceId() {
+    void returnsApplicationRoutingByAppId() {
         server.expect(once(), requestTo(
-                        "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=456"
+                        "http://app-registry/internal/api/v1/applications/insurance-app/routing"
                 ))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         {
                           "serviceId": 456,
-                          "groupId": "insurance",
                           "appId": "insurance-app",
                           "status": "ACTIVE",
                           "contractNumberServiceFieldId": 901,
@@ -154,10 +151,9 @@ class AppRegistryClientTest {
                         """, MediaType.APPLICATION_JSON));
 
         ApplicationRoutingResponse result =
-                client.getRoutingByServiceId(456L);
+                client.getRoutingByAppId("insurance-app");
 
         assertThat(result.serviceId()).isEqualTo(456L);
-        assertThat(result.groupId()).isEqualTo("insurance");
         assertThat(result.appId()).isEqualTo("insurance-app");
         assertThat(result.status()).isEqualTo(ApplicationStatus.ACTIVE);
         assertThat(result.contractNumberServiceFieldId()).isEqualTo(901L);
@@ -168,35 +164,54 @@ class AppRegistryClientTest {
     }
 
     @Test
-    void mapsUnknownServiceIdToApplicationNotFound() {
+    void mapsUnknownAppIdToApplicationNotFound() {
         server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=999"
+                        "http://app-registry/internal/api/v1/applications/missing/routing"
                 ))
                 .andRespond(withResourceNotFound());
 
-        assertThatThrownBy(() -> client.getRoutingByServiceId(999L))
+        assertThatThrownBy(() -> client.getRoutingByAppId("missing"))
                 .isInstanceOf(ApplicationNotFoundException.class);
+        server.verify();
+    }
+
+    @Test
+    void acceptsApplicationRoutingWithoutOptionalPaymentConfiguration() {
+        server.expect(requestTo(
+                        "http://app-registry/internal/api/v1/applications/content-app/routing"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "appId": "content-app",
+                          "status": "ACTIVE",
+                          "serviceId": null,
+                          "contractNumberServiceFieldId": null,
+                          "paymentFieldMappings": []
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        ApplicationRoutingResponse result = client.getRoutingByAppId("content-app");
+
+        assertThat(result.serviceId()).isNull();
+        assertThat(result.contractNumberServiceFieldId()).isNull();
         server.verify();
     }
 
     @Test
     void rejectsIncompleteApplicationRouting() {
         server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=456"
+                        "http://app-registry/internal/api/v1/applications/insurance-app/routing"
                 ))
                 .andRespond(withSuccess("""
                         {
                           "serviceId": 456,
-                          "groupId": "insurance",
                           "appId": "insurance-app",
                           "contractNumberServiceFieldId": 901,
                           "paymentFieldMappings": []
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.getRoutingByServiceId(456L))
+        assertThatThrownBy(() -> client.getRoutingByAppId("insurance-app"))
                 .isInstanceOf(AppRegistryUnavailableException.class);
         server.verify();
     }
@@ -218,12 +233,11 @@ class AppRegistryClientTest {
     @Test
     void mapsUnauthorizedResponseToDependencyUnavailable() {
         server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/applications/by-service-id"
-                                + "?serviceId=456"
+                        "http://app-registry/internal/api/v1/applications/insurance-app/routing"
                 ))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
 
-        assertThatThrownBy(() -> client.getRoutingByServiceId(456L))
+        assertThatThrownBy(() -> client.getRoutingByAppId("insurance-app"))
                 .isInstanceOf(AppRegistryUnavailableException.class)
                 .hasMessage("App-registry is temporarily unavailable")
                 .hasNoCause();
@@ -408,67 +422,83 @@ class AppRegistryClientTest {
     }
 
     @Test
-    void returnsFlatCatalogGroupItems() {
+    void returnsCatalogGroupUsingCatalogContract() {
         server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/catalog/groups/ecosystem/items"
+                        "http://app-registry/internal/api/v1/catalog/groups/ecosystem"
                 ))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
-                        [
-                          {
-                            "id": "travel-app",
-                            "type": "APPLICATION",
-                            "title": {
-                              "ru": "Путешествия",
-                              "kk": "Саяхат",
-                              "en": "Travel"
-                            },
-                            "iconUrl": null
+                        {
+                          "id": "ecosystem",
+                          "type": "GROUP",
+                          "layout": "GRID",
+                          "title": {
+                            "ru": "Экосистема",
+                            "kk": "Экожүйе",
+                            "en": "Ecosystem"
                           },
-                          {
-                            "id": "insurance",
-                            "type": "GROUP",
-                            "title": {
-                              "ru": "Страхование",
-                              "kk": "Сақтандыру",
-                              "en": "Insurance"
-                            },
-                            "iconUrl": null
-                          }
-                        ]
+                          "iconUrl": null,
+                          "items": [
+                            {
+                              "id": "travel-app",
+                              "type": "APPLICATION",
+                              "title": {
+                                "ru": "Путешествия",
+                                "kk": "Саяхат",
+                                "en": "Travel"
+                              },
+                              "iconUrl": null,
+                              "status": "MAINTENANCE",
+                              "maintenanceMessages": {
+                                "ru": "Технические работы",
+                                "kk": "Техникалық жұмыстар",
+                                "en": "Maintenance"
+                              }
+                            }
+                          ]
+                        }
                         """, MediaType.APPLICATION_JSON));
 
-        List<CatalogListItemResponse> result =
-                client.getCatalogGroupItems("ecosystem");
+        CatalogGroupResponse result = client.getCatalogGroup("ecosystem");
 
-        assertThat(result).extracting(CatalogListItemResponse::id)
-                .containsExactly("travel-app", "insurance");
-        assertThat(result.getFirst().type().name()).isEqualTo("APPLICATION");
+        assertThat(result.id()).isEqualTo("ecosystem");
+        assertThat(result.items()).singleElement()
+                .isInstanceOfSatisfying(
+                        CatalogApplicationResponse.class,
+                        application -> assertThat(application.status())
+                                .isEqualTo(ApplicationStatus.MAINTENANCE)
+                );
         server.verify();
     }
 
     @Test
     void mapsUnknownCatalogGroupToNotFound() {
         server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/catalog/groups/missing/items"
+                        "http://app-registry/internal/api/v1/catalog/groups/missing"
                 ))
                 .andRespond(withResourceNotFound());
 
-        assertThatThrownBy(() -> client.getCatalogGroupItems("missing"))
+        assertThatThrownBy(() -> client.getCatalogGroup("missing"))
                 .isInstanceOf(CatalogGroupNotFoundException.class);
         server.verify();
     }
 
     @Test
-    void rejectsIncompleteFlatCatalogItem() {
+    void rejectsCatalogGroupWithUnexpectedId() {
         server.expect(requestTo(
-                        "http://app-registry/internal/api/v1/catalog/groups/ecosystem/items"
+                        "http://app-registry/internal/api/v1/catalog/groups/ecosystem"
                 ))
                 .andRespond(withSuccess("""
-                        [{"id":"travel-app","type":"APPLICATION"}]
+                        {
+                          "id": "another-group",
+                          "type": "GROUP",
+                          "layout": "GRID",
+                          "title": {"ru":"Другая","kk":"Басқа","en":"Other"},
+                          "items": []
+                        }
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.getCatalogGroupItems("ecosystem"))
+        assertThatThrownBy(() -> client.getCatalogGroup("ecosystem"))
                 .isInstanceOf(AppRegistryUnavailableException.class);
         server.verify();
     }

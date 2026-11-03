@@ -54,18 +54,17 @@ class ApplicationAvailabilityServiceTest {
     @Test
     void returnsActiveRouting() {
         ApplicationRoutingResponse routing = new ApplicationRoutingResponse(
-                456L,
-                "insurance",
                 "insurance-app",
                 ApplicationStatus.ACTIVE,
+                456L,
                 901L,
                 List.of()
         );
-        when(appRegistryClient.getRoutingByServiceId(456L))
+        when(appRegistryClient.getRoutingByAppId("insurance-app"))
                 .thenReturn(routing);
 
         ApplicationRoutingResponse result = service()
-                .getActiveRoutingByServiceId(456L);
+                .getActiveRoutingByAppId("insurance-app");
 
         assertThat(result).isSameAs(routing);
     }
@@ -76,18 +75,33 @@ class ApplicationAvailabilityServiceTest {
             names = {"DISABLED", "MAINTENANCE"}
     )
     void rejectsUnavailableRoutingStatus(ApplicationStatus status) {
-        when(appRegistryClient.getRoutingByServiceId(456L))
+        when(appRegistryClient.getRoutingByAppId("insurance-app"))
                 .thenReturn(new ApplicationRoutingResponse(
-                        456L,
-                        "insurance",
                         "insurance-app",
                         status,
+                        456L,
                         901L,
                         List.of()
                 ));
 
         assertThatThrownBy(() -> service()
-                .getActiveRoutingByServiceId(456L))
+                .getActiveRoutingByAppId("insurance-app"))
+                .isInstanceOf(ApplicationUnavailableException.class);
+    }
+
+    @Test
+    void rejectsActiveApplicationWithoutPaymentRouting() {
+        when(appRegistryClient.getRoutingByAppId("insurance-app"))
+                .thenReturn(new ApplicationRoutingResponse(
+                        "insurance-app",
+                        ApplicationStatus.ACTIVE,
+                        null,
+                        null,
+                        List.of()
+                ));
+
+        assertThatThrownBy(() -> service()
+                .getActiveRoutingByAppId("insurance-app"))
                 .isInstanceOf(ApplicationUnavailableException.class);
     }
 

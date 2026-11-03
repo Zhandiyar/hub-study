@@ -1,6 +1,6 @@
-package com.study.hub.contract;
+package com.study.hub.order;
 
-import com.study.hub.exception.ContractNotFoundException;
+import com.study.hub.exception.OrderNotFoundException;
 import com.study.hub.exception.ApplicationNotFoundException;
 import com.study.hub.exception.ApplicationUnavailableException;
 import com.study.hub.exception.PartnerApiUnavailableException;
@@ -27,65 +27,74 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-class ContractApiTest {
+class OrderApiTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ContractService contractService;
+    private OrderService orderService;
 
     @Test
-    void returnsContractWithoutCaching() throws Exception {
-        var response = new ContractResponse(
-                "contract-123",
-                "ACTIVE",
+    void returnsOrderWithoutCaching() throws Exception {
+        var response = new OrderResponse(
+                "order-123",
+                "CREATED",
                 new BigDecimal("15000.00"),
-                "KZT",
-                List.of(
-                        new PaymentDetailResponse(901L, "contract-123"),
-                        new PaymentDetailResponse(902L, "flight")
+                Map.of("tickets", List.of(Map.of(
+                        "route", "Алматы — Астана",
+                        "airport", "ALA — NQZ",
+                        "date", "2026-11-05"
+                ))),
+                new OrderPaymentResponse(
+                        456L,
+                        List.of(
+                                new PaymentDetailResponse(901L, "order-123"),
+                                new PaymentDetailResponse(902L, "flight")
+                        )
                 )
         );
-        when(contractService.getContract(456L, "contract-123"))
+        when(orderService.getOrder("travel-app", "order-123", "kk-KZ"))
                 .thenReturn(response);
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/456/contracts/contract-123"
-                ))
+                        "/hub/api/v1/applications/travel-app/orders/order-123"
+                ).header("Accept-Language", "kk-KZ"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(jsonPath("$.contractNumber").value("contract-123"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.orderId").value("order-123"))
+                .andExpect(jsonPath("$.status").value("CREATED"))
                 .andExpect(jsonPath("$.amount").value(15000.00))
-                .andExpect(jsonPath("$.currency").value("KZT"))
-                .andExpect(jsonPath("$.paymentDetails[0].serviceFieldId").value(901))
-                .andExpect(jsonPath("$.paymentDetails[0].value").value("contract-123"))
-                .andExpect(jsonPath("$.paymentDetails[1].serviceFieldId").value(902))
-                .andExpect(jsonPath("$.paymentDetails[1].value").value("flight"));
+                .andExpect(jsonPath("$.data.tickets[0].route").value("Алматы — Астана"))
+                .andExpect(jsonPath("$.data.tickets[0].airport").value("ALA — NQZ"))
+                .andExpect(jsonPath("$.payment.serviceId").value(456))
+                .andExpect(jsonPath("$.payment.details[0].serviceFieldId").value(901))
+                .andExpect(jsonPath("$.payment.details[0].value").value("order-123"))
+                .andExpect(jsonPath("$.payment.details[1].serviceFieldId").value(902))
+                .andExpect(jsonPath("$.payment.details[1].value").value("flight"));
 
-        verify(contractService).getContract(456L, "contract-123");
+        verify(orderService).getOrder("travel-app", "order-123", "kk-KZ");
     }
 
     @Test
-    void returnsMissingContractAsNotFound() throws Exception {
-        when(contractService.getContract(456L, "missing"))
-                .thenThrow(new ContractNotFoundException());
+    void returnsMissingOrderAsNotFound() throws Exception {
+        when(orderService.getOrder("travel-app", "missing", "ru"))
+                .thenThrow(new OrderNotFoundException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/456/contracts/missing"
+                        "/hub/api/v1/applications/travel-app/orders/missing"
                 ))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("CONTRACT_NOT_FOUND"));
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"));
     }
 
     @Test
-    void returnsApplicationNotFoundForUnknownServiceId() throws Exception {
-        when(contractService.getContract(999L, "contract-123"))
+    void returnsApplicationNotFoundForUnknownAppId() throws Exception {
+        when(orderService.getOrder("missing", "order-123", "ru"))
                 .thenThrow(new ApplicationNotFoundException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/999/contracts/contract-123"
+                        "/hub/api/v1/applications/missing/orders/order-123"
                 ))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("APPLICATION_NOT_FOUND"));
@@ -93,11 +102,11 @@ class ContractApiTest {
 
     @Test
     void returnsConflictWhenApplicationIsUnavailable() throws Exception {
-        when(contractService.getContract(456L, "contract-123"))
+        when(orderService.getOrder("travel-app", "order-123", "ru"))
                 .thenThrow(new ApplicationUnavailableException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/456/contracts/contract-123"
+                        "/hub/api/v1/applications/travel-app/orders/order-123"
                 ))
                 .andExpect(status().isConflict())
                 .andExpect(header().string("Cache-Control", "no-store"))
@@ -106,11 +115,11 @@ class ContractApiTest {
 
     @Test
     void hidesPartnerFailureBehindBadGateway() throws Exception {
-        when(contractService.getContract(456L, "contract-123"))
+        when(orderService.getOrder("travel-app", "order-123", "ru"))
                 .thenThrow(new PartnerApiUnavailableException());
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/456/contracts/contract-123"
+                        "/hub/api/v1/applications/travel-app/orders/order-123"
                 ))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.code").value("PARTNER_API_UNAVAILABLE"))
@@ -121,7 +130,7 @@ class ContractApiTest {
 
     @Test
     void returnsPartnerBusinessErrorAsUnprocessableEntity() throws Exception {
-        when(contractService.getContract(456L, "contract-123"))
+        when(orderService.getOrder("travel-app", "order-123", "ru"))
                 .thenThrow(new PartnerBusinessException(
                         "Contract amount is invalid",
                         "CONTRACT_DIFFERENT_AMOUNT",
@@ -129,7 +138,7 @@ class ContractApiTest {
                 ));
 
         mockMvc.perform(get(
-                        "/hub/api/v1/services/456/contracts/contract-123"
+                        "/hub/api/v1/applications/travel-app/orders/order-123"
                 ))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(header().string("Cache-Control", "no-store"))

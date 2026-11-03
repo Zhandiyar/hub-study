@@ -62,9 +62,9 @@ App Study и демонстрационные партнёрские API дос�
 | Метод | Маршрут                                                             | Назначение |
 |---|---------------------------------------------------------------------|---|
 | `GET` | `/hub/api/v1/catalog` | Получить дерево каталога |
-| `GET` | `/hub/api/v1/catalog/groups/{groupId}/items` | Получить непосредственные элементы группы плоским списком |
+| `GET` | `/hub/api/v1/catalog/groups/{groupId}` | Получить группу и один уровень её элементов |
 | `GET` | `/hub/api/v1/applications/{appId}` | Получить конфигурацию приложения |
-| `GET` | `/hub/api/v1/services/{serviceId}/contracts/{contractNumber}` | Получить договор |
+| `GET` | `/hub/api/v1/applications/{appId}/orders/{orderId}` | Получить заказ и данные для оплаты |
 | `POST` | `/hub/api/v1/applications/{appId}/launch` | Получить данные для запуска приложения |
 
 `GET /applications/{appId}` возвращает приложение в любом статусе: `ACTIVE`,
@@ -73,22 +73,24 @@ App Study и демонстрационные партнёрские API дос�
 нужные клиенту `merchantId` и `serviceId`. Внутренние `paymentWebhookUrl` и
 `credentialId` мобильному приложению не передаются.
 
-`catalog` возвращает корневую группу `ecosystem`, группы первого уровня и приложения.
+`catalog` возвращает полное дерево, начиная с корневой группы `ecosystem`.
 Для всех элементов используются общие поля `id` и `type`. У группы `id`
 содержит `groupId`, у приложения — `appId`; при выборе `APPLICATION` мобильный
-клиент передаёт его `id` как `{appId}` в launch API. Для получения договора
-используется `serviceId` из финансовой конфигурации приложения. Также каталог
+клиент передаёт его `id` как `{appId}` в launch API и API заказа. Также каталог
 содержит локализованный `title`, `iconUrl`, `layout`, статус и
 maintenance-сообщения. Runtime-настройки WebView и партнёрская сессия в каталог
 не входят. В каталог включаются только `ACTIVE` и `MAINTENANCE`; `DISABLED`
 скрывается.
 
-`GET /catalog/groups/{groupId}/items` используется для поэтапной загрузки.
-Он возвращает один массив непосредственных дочерних `GROUP` и `APPLICATION`
-без вложенных `items`, статуса и maintenance-сообщений. В список попадают
-только активные приложения и непустые группы; элементы отсортированы по
-`displayOrder`, затем по `id`. Для неизвестной группы API возвращает `404`,
-для существующей пустой группы — `200` и `[]`.
+`GET /catalog/groups/{groupId}` используется для поэтапной загрузки. Он
+возвращает `CatalogGroupResponse` с непосредственными дочерними `GROUP` и
+`APPLICATION` в `items`. Контракт совпадает с элементами полного каталога:
+приложение содержит статус и maintenance-сообщения, группа — `layout`. Дочерняя
+группа в таком ответе не раскрывается: её `items` пуст, а содержимое загружается
+отдельным запросом по её `id`. Возвращаются приложения в статусах `ACTIVE` и
+`MAINTENANCE`, а также группы с видимым приложением на любом уровне ниже.
+Элементы отсортированы по `displayOrder`, затем по `id`. Неизвестный `groupId`
+даёт `404`; существующая пустая группа возвращается с пустым `items`.
 
 Успешные ответы перечисленных бизнес-API содержат `Cache-Control: no-store`.
 
@@ -98,9 +100,9 @@ Study Hub обращается к следующим внутренним API б
 
 ```text
 GET /internal/api/v1/applications/{appId}/configuration
-GET /internal/api/v1/applications/by-service-id?serviceId={serviceId}
+GET /internal/api/v1/applications/{appId}/routing
 GET /internal/api/v1/catalog
-GET /internal/api/v1/catalog/groups/{groupId}/items
+GET /internal/api/v1/catalog/groups/{groupId}
 ```
 
 Текущие consumer-контракты Study Hub:
@@ -109,7 +111,7 @@ GET /internal/api/v1/catalog/groups/{groupId}/items
 HubApplicationConfigurationResponse
 ApplicationRoutingResponse
 CatalogGroupResponse
-CatalogListItemResponse
+CatalogApplicationResponse
 ```
 
 DTO клиента находятся в пакете `client.appregistry.dto` и отражают сетевой
@@ -134,8 +136,9 @@ DTO клиента находятся в пакете `client.appregistry.dto` �
 
 В этой модели App Study является единственным владельцем конфигурации и
 проверяет формат `appId` при регистрации. Для договорной операции Study Hub
-разрешает внешний `serviceId` в `groupId`, `appId` и `status`. Партнёр вызывается
-только для приложения в статусе `ACTIVE`.
+получает по внешнему `appId` минимальный маршрут: канонический `appId`, статус,
+`serviceId` и правила платёжных полей. Партнёр вызывается только для приложения
+в статусе `ACTIVE`.
 
 ## Маршрутизация к партнёрам
 
@@ -153,7 +156,8 @@ base URL: http://insurance-kasko
 Внутренние контракты партнёров:
 
 ```text
-GET  http://{appId}/internal/api/v1/contracts/{contractNumber}
+GET  http://{appId}/internal/api/v1/contracts/{orderId}
+     Accept-Language: kk-KZ
 POST http://{appId}/internal/api/v1/session/token
 POST http://{appId}/internal/api/v1/session/code
 ```
@@ -167,10 +171,18 @@ DNS-адрес либо отдельная конфигурация маршру
 
 ```json
 {
-  "contractNumber": "TRAVEL-2026-001",
-  "status": "ACTIVE",
+  "orderId": "TRAVEL-2026-001",
+  "status": "CREATED",
   "amount": 15000.00,
-  "currency": "KZT",
+  "data": {
+    "tickets": [
+      {
+        "route": "Алматы — Астана",
+        "airport": "ALA — NQZ",
+        "date": "2026-11-05T10:30:00+05:00"
+      }
+    ]
+  },
   "paymentFields": {
     "type": "flight"
   }
@@ -187,19 +199,31 @@ Hub получает из App Study `contractNumberServiceFieldId` и
 
 ```json
 {
-  "contractNumber": "TRAVEL-2026-001",
-  "status": "ACTIVE",
+  "orderId": "TRAVEL-2026-001",
+  "status": "CREATED",
   "amount": 15000.00,
-  "currency": "KZT",
-  "paymentDetails": [
-    {"serviceFieldId": 901, "value": "TRAVEL-2026-001"},
-    {"serviceFieldId": 902, "value": "flight"}
-  ]
+  "data": {
+    "tickets": [
+      {
+        "route": "Алматы — Астана",
+        "airport": "ALA — NQZ",
+        "date": "2026-11-05T10:30:00+05:00"
+      }
+    ]
+  },
+  "payment": {
+    "serviceId": 191,
+    "details": [
+      {"serviceFieldId": 901, "value": "TRAVEL-2026-001"},
+      {"serviceFieldId": 902, "value": "flight"}
+    ]
+  }
 }
 ```
 
-Мобильный клиент не знает о `orderType`, коде `type` или правилах App Study,
-а передаёт `paymentDetails` в процесс оплаты. Пустой, неполный или
+Мобильный клиент не знает о `orderType`, коде `type` или правилах App Study:
+он получает специфичные для приложения данные в `data` и передаёт `payment.serviceId` вместе
+с `payment.details` в процесс оплаты. Пустой, неполный или
 противоречивый ответ адаптера преобразуется в `502 Bad Gateway`.
 
 Ожидаемая бизнес-ошибка партнёра имеет статус `422 Unprocessable Entity`:
@@ -266,7 +290,7 @@ Study Hub получает конфигурацию из App Study и обраб
 
 `expiresAt` отсутствует. Значение `session.value` приходит только от партнёра,
 не сохраняется и не записывается в логи. Пустое значение, некорректный JSON или
-недоступность партнёра преобразуются в `502 Bad Gateway`. Launch и contract
+недоступность партнёра преобразуются в `502 Bad Gateway`. Launch и order
 операции для приложения не в статусе `ACTIVE` возвращают `409 Conflict` с
 кодом `APPLICATION_UNAVAILABLE` без вызова партнёра.
 
@@ -280,7 +304,7 @@ REST-ошибки возвращаются в формате RFC 9457 `applicati
 | `401` | `UNAUTHORIZED` | JWT отсутствует или отклонён внешним Gateway |
 | `403` | `FORBIDDEN` | Запрос отклонён политикой внешнего Gateway |
 | `404` | `APPLICATION_NOT_FOUND` | Приложение не найдено |
-| `404` | `CONTRACT_NOT_FOUND` | Договор не найден |
+| `404` | `ORDER_NOT_FOUND` | Заказ не найден |
 | `409` | `APPLICATION_UNAVAILABLE` | Приложение недоступно для операции |
 | `422` | `PARTNER_BUSINESS_ERROR` | Партнёр отклонил запрос по бизнес-правилам |
 | `502` | `PARTNER_API_UNAVAILABLE` | Ошибка или недоступность партнёра |
@@ -324,7 +348,7 @@ Hub не требуются.
 - default-deny NetworkPolicy разрешает партнёрам вход только от Study Hub;
 - egress Study Hub ограничен App Study и partner-подами;
 - внутренний HTTP защищён mTLS/service mesh;
-- на Gateway настроен rate limit для launch и contract API;
+- на Gateway настроен rate limit для launch и order API;
 - контейнеры запускаются не от `root`.
 
 Если Study Hub или партнёр не проверяет JWT криптографически, он может доверять
@@ -344,8 +368,8 @@ JSON-запись на строку в `stdout`. В MDC добавляются `
 
 Logbook журналирует входящие и исходящие HTTP-вызовы. Для успешных операций
 записываются метаданные запроса и ответа, тела добавляются только при статусе
-`400` и выше. Contract endpoint исключены из Logbook целиком, поскольку URL
-содержит номер договора, а партнёр может вернуть произвольные чувствительные
+`400` и выше. Endpoint получения заказа исключён из Logbook целиком, поскольку URL
+содержит идентификатор заказа, а партнёр может вернуть произвольные чувствительные
 данные. Для launch и session успешные тела с token/code не записываются, а
 технические метаданные и безопасно отфильтрованные тела ошибок остаются доступны.
 
@@ -362,8 +386,8 @@ Logbook журналирует входящие и исходящие HTTP-вы�
 
 - JWT и заголовок `Authorization`;
 - успешные тела launch/session с `session.value`, партнёрскими `token` и `code`;
-- номер и содержимое договора;
-- любые тела contract запросов и ответов;
+- идентификатор и содержимое заказа;
+- любые тела order-запросов и ответов;
 - секреты и credential-related поля.
 
 Приложение не подключается к Elasticsearch или Logstash напрямую. В Kubernetes

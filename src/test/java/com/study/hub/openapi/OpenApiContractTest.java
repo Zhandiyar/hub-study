@@ -84,36 +84,38 @@ class OpenApiContractTest {
                 .path("properties");
         assertThat(catalogApplicationSchema.has("id")).isTrue();
         assertThat(catalogApplicationSchema.has("appId")).isFalse();
-        JsonNode groupItemsOperation = operation(
+        JsonNode groupOperation = operation(
                 openApi,
-                "/hub/api/v1/catalog/groups/{groupId}/items"
+                "/hub/api/v1/catalog/groups/{groupId}"
         );
         assertResponses(
-                groupItemsOperation,
+                groupOperation,
                 "200", "400", "401", "404", "500", "503"
         );
-        JsonNode groupItemsSchema = groupItemsOperation.path("responses")
+        JsonNode groupSchema = groupOperation.path("responses")
                 .path("200")
                 .path("content")
                 .path("application/json")
                 .path("schema");
-        assertThat(groupItemsSchema.path("type").asText()).isEqualTo("array");
-        assertThat(groupItemsSchema.path("items").path("$ref").asText())
-                .isEqualTo("#/components/schemas/CatalogListItemResponse");
-        JsonNode contractOperation = operation(
+        assertThat(groupSchema.path("$ref").asText())
+                .isEqualTo("#/components/schemas/CatalogGroupResponse");
+        JsonNode orderOperation = operation(
                 openApi,
-                "/hub/api/v1/services/{serviceId}/contracts/{contractNumber}"
+                "/hub/api/v1/applications/{appId}/orders/{orderId}"
         );
         assertResponses(
-                contractOperation,
+                orderOperation,
                 "200", "400", "401", "404", "409", "422", "500", "502", "503"
         );
-        assertResponseSchema(contractOperation, "ContractResponse");
-        JsonNode contractProperties = openApi.path("components")
+        assertResponseSchema(orderOperation, "OrderResponse");
+        JsonNode orderProperties = openApi.path("components")
                 .path("schemas")
-                .path("ContractResponse")
+                .path("OrderResponse")
                 .path("properties");
-        assertThat(contractProperties.has("paymentDetails")).isTrue();
+        assertThat(orderProperties.has("data")).isTrue();
+        assertThat(orderProperties.has("status")).isTrue();
+        assertThat(orderProperties.has("currency")).isFalse();
+        assertThat(orderProperties.has("payment")).isTrue();
         JsonNode launchOperation = operation(
                 openApi,
                 "/hub/api/v1/applications/{appId}/launch",

@@ -6,14 +6,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Общий внутренний контракт adapter → Hub. */
-public record PartnerContractResponse(
-        String contractNumber,
+public record PartnerOrderResponse(
+        String orderId,
         String status,
         BigDecimal amount,
-        String currency,
+        Map<String, Object> data,
         Map<String, String> paymentFields
 ) {
-    public PartnerContractResponse {
+    public PartnerOrderResponse {
+        data = data == null
+                ? Map.of()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(data));
         paymentFields = paymentFields == null
                 ? Map.of()
                 : Collections.unmodifiableMap(new LinkedHashMap<>(paymentFields));

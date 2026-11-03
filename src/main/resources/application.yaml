@@ -42,7 +42,7 @@ logbook:
       - path: /swagger-ui/**
       - path: /v3/api-docs/**
       - path: /favicon.ico
-      - path: /hub/api/v1/services/*/contracts/**
+      - path: /hub/api/v1/applications/*/orders/**
       - path: /internal/api/v1/contracts/**
   obfuscate:
     replacement: "***"
