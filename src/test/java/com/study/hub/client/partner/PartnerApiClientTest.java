@@ -226,12 +226,13 @@ class PartnerApiClientTest {
                         "http://insurance-app/internal/api/v1/session/token"
                 ))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Accept-Language", "kk-KZ"))
                 .andRespond(withSuccess(
                         "{\"token\":\"partner-session-token\"}",
                         MediaType.APPLICATION_JSON
                 ));
 
-        String result = client.createSessionToken("insurance-app");
+        String result = client.createSessionToken("insurance-app", "kk-KZ");
 
         assertThat(result).isEqualTo("partner-session-token");
         server.verify();
@@ -243,12 +244,13 @@ class PartnerApiClientTest {
                         "http://insurance-app/internal/api/v1/session/code"
                 ))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Accept-Language", "kk-KZ"))
                 .andRespond(withSuccess(
                         "{\"code\":\"123456\"}",
                         MediaType.APPLICATION_JSON
                 ));
 
-        String result = client.createSessionCode("insurance-app");
+        String result = client.createSessionCode("insurance-app", "kk-KZ");
 
         assertThat(result).isEqualTo("123456");
         server.verify();
@@ -261,7 +263,7 @@ class PartnerApiClientTest {
                 ))
                 .andRespond(withSuccess("{\"token\":\" \"}", MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.createSessionToken("insurance-app"))
+        assertThatThrownBy(() -> client.createSessionToken("insurance-app", "ru"))
                 .isInstanceOf(PartnerApiUnavailableException.class);
         server.verify();
     }
@@ -275,7 +277,7 @@ class PartnerApiClientTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"code\":\"sensitive-code\"}"));
 
-        assertThatThrownBy(() -> client.createSessionCode("insurance-app"))
+        assertThatThrownBy(() -> client.createSessionCode("insurance-app", "ru"))
                 .isInstanceOf(PartnerApiUnavailableException.class)
                 .hasMessage("Partner service is temporarily unavailable")
                 .hasNoCause();
@@ -296,11 +298,44 @@ class PartnerApiClientTest {
                                 }
                                 """));
 
-        assertThatThrownBy(() -> client.createSessionToken("insurance-app"))
+        assertThatThrownBy(() -> client.createSessionToken("insurance-app", "ru"))
                 .isInstanceOfSatisfying(PartnerBusinessException.class, exception -> {
                     assertThat(exception.getMessage()).isEqualTo("Session cannot be created");
                     assertThat(exception.errorCode()).isEqualTo("SESSION_NOT_AVAILABLE");
                 });
+        server.verify();
+    }
+
+    @Test
+    void createsReadyViewUrl() {
+        server.expect(requestTo(
+                        "http://gourmet/internal/api/v1/session/view-url"
+                ))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Accept-Language", "kk-KZ"))
+                .andRespond(withSuccess(
+                        "{\"entryUrl\":\"https://gourmet.example/view?token=abc\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        String result = client.createViewUrl("gourmet", "kk-KZ");
+
+        assertThat(result).isEqualTo("https://gourmet.example/view?token=abc");
+        server.verify();
+    }
+
+    @Test
+    void rejectsUnsafeReadyViewUrl() {
+        server.expect(requestTo(
+                        "http://gourmet/internal/api/v1/session/view-url"
+                ))
+                .andRespond(withSuccess(
+                        "{\"entryUrl\":\"http://gourmet.example/view\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertThatThrownBy(() -> client.createViewUrl("gourmet", "ru"))
+                .isInstanceOf(PartnerApiUnavailableException.class);
         server.verify();
     }
 }

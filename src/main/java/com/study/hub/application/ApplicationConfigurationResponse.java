@@ -38,7 +38,7 @@ public record ApplicationConfigurationResponse(
         IntegrationType integrationType,
 
         @Schema(
-                description = "Способ создания сессии; не задан до настройки конфигурации",
+                description = "Способ подготовки запуска; не задан до настройки конфигурации",
                 nullable = true
         )
         SessionMode sessionMode,

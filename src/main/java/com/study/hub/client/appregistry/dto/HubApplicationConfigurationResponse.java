@@ -33,7 +33,7 @@ public record HubApplicationConfigurationResponse(
         IntegrationType integrationType,
 
         @Schema(
-                description = "Способ создания сессии; не задан до настройки конфигурации",
+                description = "Способ подготовки запуска; не задан до настройки конфигурации",
                 example = "TOKEN",
                 nullable = true
         )

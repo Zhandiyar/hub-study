@@ -18,12 +18,12 @@ public class LaunchService {
     private final ApplicationAvailabilityService applicationAvailabilityService;
     private final PartnerApiClient partnerApiClient;
 
-    public LaunchResponse launch(String appId) {
+    public LaunchResponse launch(String appId, String language) {
         HubApplicationConfigurationResponse configuration =
                 applicationAvailabilityService.getActiveConfiguration(appId);
 
         validateLaunchConfiguration(appId, configuration);
-        LaunchSessionResponse session = createSession(appId, configuration);
+        PreparedLaunch prepared = prepareLaunch(appId, language, configuration);
 
         log.info(
                 "Application launch prepared: appId={} integrationType={} sessionMode={}",
@@ -33,33 +33,47 @@ public class LaunchService {
         );
         return new LaunchResponse(
                 appId,
-                configuration.interfaceConfiguration().entryUrl(),
-                session
+                prepared.entryUrl(),
+                prepared.session()
         );
     }
 
-    private LaunchSessionResponse createSession(
+    private PreparedLaunch prepareLaunch(
             String appId,
+            String language,
             HubApplicationConfigurationResponse configuration
     ) {
         return switch (configuration.integrationType()) {
-            case PARTNER_WEBVIEW -> createPartnerSession(
+            case PARTNER_WEBVIEW -> preparePartnerWebview(
                     appId,
-                    configuration.sessionMode()
+                    language,
+                    configuration
             );
-            case API_FIRST -> null;
+            case API_FIRST -> new PreparedLaunch(
+                    configuration.interfaceConfiguration().entryUrl(),
+                    null
+            );
         };
     }
 
-    private LaunchSessionResponse createPartnerSession(String appId, SessionMode sessionMode) {
-        return switch (sessionMode) {
-            case TOKEN -> new LaunchSessionResponse(
+    private PreparedLaunch preparePartnerWebview(
+            String appId,
+            String language,
+            HubApplicationConfigurationResponse configuration
+    ) {
+        String configuredEntryUrl = configuration.interfaceConfiguration().entryUrl();
+        return switch (configuration.sessionMode()) {
+            case TOKEN -> new PreparedLaunch(configuredEntryUrl, new LaunchSessionResponse(
                     SessionMode.TOKEN,
-                    partnerApiClient.createSessionToken(appId)
-            );
-            case CODE -> new LaunchSessionResponse(
+                    partnerApiClient.createSessionToken(appId, language)
+            ));
+            case CODE -> new PreparedLaunch(configuredEntryUrl, new LaunchSessionResponse(
                     SessionMode.CODE,
-                    partnerApiClient.createSessionCode(appId)
+                    partnerApiClient.createSessionCode(appId, language)
+            ));
+            case VIEW_URL -> new PreparedLaunch(
+                    partnerApiClient.createViewUrl(appId, language),
+                    new LaunchSessionResponse(SessionMode.VIEW_URL, null)
             );
             case NONE -> throw invalidRegistryConfiguration(appId);
         };
@@ -79,7 +93,8 @@ public class LaunchService {
 
         boolean compatible = switch (configuration.integrationType()) {
             case PARTNER_WEBVIEW -> configuration.sessionMode() == SessionMode.TOKEN
-                    || configuration.sessionMode() == SessionMode.CODE;
+                    || configuration.sessionMode() == SessionMode.CODE
+                    || configuration.sessionMode() == SessionMode.VIEW_URL;
             case API_FIRST -> configuration.sessionMode() == SessionMode.NONE;
         };
         if (!compatible) {
@@ -90,5 +105,8 @@ public class LaunchService {
     private AppRegistryUnavailableException invalidRegistryConfiguration(String appId) {
         log.warn("App-registry returned invalid launch configuration: appId={}", appId);
         return new AppRegistryUnavailableException();
+    }
+
+    private record PreparedLaunch(String entryUrl, LaunchSessionResponse session) {
     }
 }

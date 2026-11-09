@@ -58,6 +58,7 @@ logbook:
       - secret
       - token
       - value
+      - entryUrl
       - accessToken
       - refreshToken
   write:

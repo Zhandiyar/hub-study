@@ -32,13 +32,14 @@ class LaunchApiTest {
 
     @Test
     void returnsLaunchDataWithoutCaching() throws Exception {
-        when(launchService.launch("insurance-app")).thenReturn(new LaunchResponse(
+        when(launchService.launch("insurance-app", "kk-KZ")).thenReturn(new LaunchResponse(
                 "insurance-app",
                 "https://partner.example.com/app",
                 new LaunchSessionResponse(SessionMode.TOKEN, "partner-token")
         ));
 
-        mockMvc.perform(post("/hub/api/v1/applications/insurance-app/launch"))
+        mockMvc.perform(post("/hub/api/v1/applications/insurance-app/launch")
+                        .header("Accept-Language", "kk-KZ"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.appId").value("insurance-app"))
@@ -48,12 +49,12 @@ class LaunchApiTest {
                 .andExpect(jsonPath("$.expiresAt").doesNotExist())
                 .andExpect(jsonPath("$.session.expiresAt").doesNotExist());
 
-        verify(launchService).launch("insurance-app");
+        verify(launchService).launch("insurance-app", "kk-KZ");
     }
 
     @Test
     void returnsApiFirstLaunchWithoutSession() throws Exception {
-        when(launchService.launch("insurance-app")).thenReturn(new LaunchResponse(
+        when(launchService.launch("insurance-app", "ru")).thenReturn(new LaunchResponse(
                 "insurance-app",
                 "https://platform.example.com/app",
                 null
@@ -65,8 +66,25 @@ class LaunchApiTest {
     }
 
     @Test
+    void returnsReadyViewUrlWithoutDuplicatingItInSession() throws Exception {
+        when(launchService.launch("gourmet", "kk-KZ")).thenReturn(new LaunchResponse(
+                "gourmet",
+                "https://gourmet.example/view?token=abc",
+                new LaunchSessionResponse(SessionMode.VIEW_URL, null)
+        ));
+
+        mockMvc.perform(post("/hub/api/v1/applications/gourmet/launch")
+                        .header("Accept-Language", "kk-KZ"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entryUrl")
+                        .value("https://gourmet.example/view?token=abc"))
+                .andExpect(jsonPath("$.session.type").value("VIEW_URL"))
+                .andExpect(jsonPath("$.session.value").doesNotExist());
+    }
+
+    @Test
     void returnsConflictWhenApplicationCannotBeLaunched() throws Exception {
-        when(launchService.launch("insurance-app"))
+        when(launchService.launch("insurance-app", "ru"))
                 .thenThrow(new ApplicationUnavailableException());
 
         mockMvc.perform(post("/hub/api/v1/applications/insurance-app/launch"))
@@ -77,7 +95,7 @@ class LaunchApiTest {
 
     @Test
     void hidesPartnerFailureBehindBadGateway() throws Exception {
-        when(launchService.launch("insurance-app"))
+        when(launchService.launch("insurance-app", "ru"))
                 .thenThrow(new PartnerApiUnavailableException());
 
         mockMvc.perform(post("/hub/api/v1/applications/insurance-app/launch"))

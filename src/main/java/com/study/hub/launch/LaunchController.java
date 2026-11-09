@@ -12,11 +12,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -52,10 +54,13 @@ public class LaunchController {
     )
     public ResponseEntity<LaunchResponse> launch(
             @Parameter(description = "Идентификатор приложения", example = "insurance-app")
-            @PathVariable String appId
+            @PathVariable String appId,
+            @Parameter(description = "Предпочитаемый язык", example = "kk-KZ")
+            @RequestHeader(name = HttpHeaders.ACCEPT_LANGUAGE, defaultValue = "ru")
+            String language
     ) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(launchService.launch(appId));
+                .body(launchService.launch(appId, language));
     }
 }

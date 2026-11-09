@@ -39,16 +39,16 @@ class LaunchServiceTest {
                         IntegrationType.PARTNER_WEBVIEW,
                         SessionMode.TOKEN
                 ));
-        when(partnerApiClient.createSessionToken("insurance-app"))
+        when(partnerApiClient.createSessionToken("insurance-app", "kk-KZ"))
                 .thenReturn("partner-token");
 
-        LaunchResponse response = service().launch("insurance-app");
+        LaunchResponse response = service().launch("insurance-app", "kk-KZ");
 
         assertThat(response.appId()).isEqualTo("insurance-app");
         assertThat(response.entryUrl()).isEqualTo("https://partner.example.com/app");
         assertThat(response.session().type()).isEqualTo(SessionMode.TOKEN);
         assertThat(response.session().value()).isEqualTo("partner-token");
-        verify(partnerApiClient).createSessionToken("insurance-app");
+        verify(partnerApiClient).createSessionToken("insurance-app", "kk-KZ");
     }
 
     @Test
@@ -59,14 +59,33 @@ class LaunchServiceTest {
                         IntegrationType.PARTNER_WEBVIEW,
                         SessionMode.CODE
                 ));
-        when(partnerApiClient.createSessionCode("insurance-app"))
+        when(partnerApiClient.createSessionCode("insurance-app", "kk-KZ"))
                 .thenReturn("123456");
 
-        LaunchResponse response = service().launch("insurance-app");
+        LaunchResponse response = service().launch("insurance-app", "kk-KZ");
 
         assertThat(response.session().type()).isEqualTo(SessionMode.CODE);
         assertThat(response.session().value()).isEqualTo("123456");
-        verify(partnerApiClient).createSessionCode("insurance-app");
+        verify(partnerApiClient).createSessionCode("insurance-app", "kk-KZ");
+    }
+
+    @Test
+    void launchesPartnerWebviewWithReadyUrl() {
+        when(applicationAvailabilityService.getActiveConfiguration("insurance-app"))
+                .thenReturn(configuration(
+                        ApplicationStatus.ACTIVE,
+                        IntegrationType.PARTNER_WEBVIEW,
+                        SessionMode.VIEW_URL
+                ));
+        when(partnerApiClient.createViewUrl("insurance-app", "kk-KZ"))
+                .thenReturn("https://partner.example.com/app?token=abc");
+
+        LaunchResponse response = service().launch("insurance-app", "kk-KZ");
+
+        assertThat(response.entryUrl()).isEqualTo("https://partner.example.com/app?token=abc");
+        assertThat(response.session().type()).isEqualTo(SessionMode.VIEW_URL);
+        assertThat(response.session().value()).isNull();
+        verify(partnerApiClient).createViewUrl("insurance-app", "kk-KZ");
     }
 
     @Test
@@ -78,7 +97,7 @@ class LaunchServiceTest {
                         SessionMode.NONE
                 ));
 
-        LaunchResponse response = service().launch("insurance-app");
+        LaunchResponse response = service().launch("insurance-app", "ru");
 
         assertThat(response.entryUrl()).isEqualTo("https://partner.example.com/app");
         assertThat(response.session()).isNull();
@@ -90,7 +109,7 @@ class LaunchServiceTest {
         when(applicationAvailabilityService.getActiveConfiguration("insurance-app"))
                 .thenThrow(new ApplicationUnavailableException());
 
-        assertThatThrownBy(() -> service().launch("insurance-app"))
+        assertThatThrownBy(() -> service().launch("insurance-app", "ru"))
                 .isInstanceOf(ApplicationUnavailableException.class);
 
         verifyNoInteractions(partnerApiClient);
@@ -105,7 +124,7 @@ class LaunchServiceTest {
                         SessionMode.TOKEN
                 ));
 
-        assertThatThrownBy(() -> service().launch("insurance-app"))
+        assertThatThrownBy(() -> service().launch("insurance-app", "ru"))
                 .isInstanceOf(AppRegistryUnavailableException.class);
 
         verifyNoInteractions(partnerApiClient);
@@ -116,7 +135,7 @@ class LaunchServiceTest {
         when(applicationAvailabilityService.getActiveConfiguration("unknown-app"))
                 .thenThrow(new ApplicationNotFoundException());
 
-        assertThatThrownBy(() -> service().launch("unknown-app"))
+        assertThatThrownBy(() -> service().launch("unknown-app", "ru"))
                 .isInstanceOf(ApplicationNotFoundException.class);
 
         verifyNoInteractions(partnerApiClient);

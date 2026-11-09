@@ -3,6 +3,8 @@ package com.study.hub.client.partner;
 import com.study.hub.exception.OrderNotFoundException;
 import com.study.hub.exception.PartnerApiUnavailableException;
 import com.study.hub.exception.PartnerBusinessException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +23,8 @@ public class PartnerApiClient {
             "http://{appId}/internal/api/v1/session/token";
     private static final String SESSION_CODE_URL =
             "http://{appId}/internal/api/v1/session/code";
+    private static final String SESSION_VIEW_URL =
+            "http://{appId}/internal/api/v1/session/view-url";
 
     private final RestClient restClient;
     private final PartnerErrorParser errorParser;
@@ -76,9 +80,10 @@ public class PartnerApiClient {
                 || order.amount() == null;
     }
 
-    public String createSessionToken(String appId) {
+    public String createSessionToken(String appId, String language) {
         PartnerSessionTokenResponse response = createSession(
                 appId,
+                language,
                 SESSION_TOKEN_URL,
                 PartnerSessionTokenResponse.class
         );
@@ -88,9 +93,10 @@ public class PartnerApiClient {
         return response.token();
     }
 
-    public String createSessionCode(String appId) {
+    public String createSessionCode(String appId, String language) {
         PartnerSessionCodeResponse response = createSession(
                 appId,
+                language,
                 SESSION_CODE_URL,
                 PartnerSessionCodeResponse.class
         );
@@ -100,10 +106,29 @@ public class PartnerApiClient {
         return response.code();
     }
 
-    private <T> T createSession(String appId, String url, Class<T> responseType) {
+    public String createViewUrl(String appId, String language) {
+        PartnerViewUrlResponse response = createSession(
+                appId,
+                language,
+                SESSION_VIEW_URL,
+                PartnerViewUrlResponse.class
+        );
+        if (response.entryUrl() == null || !isSafeViewUrl(response.entryUrl())) {
+            throw invalidSessionResponse(appId);
+        }
+        return response.entryUrl();
+    }
+
+    private <T> T createSession(
+            String appId,
+            String language,
+            String url,
+            Class<T> responseType
+    ) {
         try {
             T response = restClient.post()
                     .uri(url, appId)
+                    .header(HttpHeaders.ACCEPT_LANGUAGE, language)
                     .retrieve()
                     .body(responseType);
 
@@ -126,6 +151,18 @@ public class PartnerApiClient {
     private PartnerApiUnavailableException invalidSessionResponse(String appId) {
         log.warn("Partner service returned an invalid session response: appId={}", appId);
         return new PartnerApiUnavailableException();
+    }
+
+    private boolean isSafeViewUrl(String value) {
+        try {
+            URI uri = new URI(value);
+            return "https".equalsIgnoreCase(uri.getScheme())
+                    && uri.getHost() != null
+                    && uri.getRawUserInfo() == null
+                    && uri.getRawFragment() == null;
+        } catch (URISyntaxException exception) {
+            return false;
+        }
     }
 
     private RuntimeException mapResponseException(
@@ -163,5 +200,8 @@ public class PartnerApiClient {
     }
 
     private record PartnerSessionCodeResponse(String code) {
+    }
+
+    private record PartnerViewUrlResponse(String entryUrl) {
     }
 }
